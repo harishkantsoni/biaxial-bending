@@ -241,45 +241,56 @@ def compute_stress_block_geomemtry(dv, rp):
 
 
 
-# TODO There might be smarter ways to fill lists for stress and strain
-eps_r = []  # Strain in each rebar
-for i in range(nbars):
-    eps_r.append(rp[i] / abs(c) * eps_cu)
+# # TODO There might be smarter ways to fill lists for stress and strain
+# eps_r = []  # Strain in each rebar
+# for i in range(nbars):
+#     eps_r.append(rp[i] / abs(c) * eps_cu)
 
-# Compute rebar stress
-sigma_r = []
-for i in range(nbars):
-    si = eps_r[i] * Es
-    if abs(si) <= fy:
-        sigma_r.append(si)   # Use computed stress if it does not exceed yielding stress
+def compute_rebar_strain(dist_to_NA, eps_cu):
+    '''    Returns strain in each rebar as a list    '''
+    return [ri / abs(c) * eps_cu for ri in dist_to_NA]
+
+def compute_rebar_stress(eps_r, Es, fy):
+    '''    Returns stress in each rebar as a list    '''
+    sigma_r = []
+    for i in range(nbars):
+        si = eps_r[i] * Es                  # Linear elastic stress in i'th bar
+        if abs(si) <= fy:
+            sigma_r.append(si)              # Use computed stress if it does not exceed yielding stress
+        else:
+            sigma_r.append(np.sign(si)*fy)  # If computed stress exceeds yield, use yielding stress instead
+
+    return sigma_r
+
+
+def get_rebars_inside_stress_block(xr, yr, x_sb, y_sb):
+    '''    Returns a list with entry 'True' for rebars located inside the stress block, 'False' otherwise    '''
+    # Arrange rebar coordinates
+    rebar_coords = [xr[i], yr[i] for i in range(len(xr))]
+    # TODO Delete for lopp below when list comprehension succeds
+    # rebar_coords = []
+    # for i in range(len(xr)):
+    #     rebar_coords.append([xr[i], yr[i]])
+
+    # Arrange stress block coordinates
+    Asb = geometry.polygon_area(x_sb, y_sb)
+    if Asb != 0:
+        sb_poly = [[x_sb[i], y_sb[i]] for i in range(len(x_sb))]
+        # TODO Delete for lopp below when list comprehension succeds
+        # sb_poly = []
+        # for i in range(len(x_sb)):
+        #     sb_poly.append([x_sb[i], y_sb[i]])
+
+        # Check if rebars are inside the stress block
+        path = mpltPath.Path(sb_poly)
+        rebar_inside = path.contains_points(rebar_coords)   # Returns 'True' if rebar is inside stress block
     else:
-        sigma_r.append(np.sign(si)*fy)  # If computed stress exceeds yield, use yielding stress instead
-
-
-# NOTE Arragement of coordinates and check for rebars inside stress block could be done better/in fewer lines
-# Arrange rebar coordinates
-rebar_coords = []
-for i in range(len(xr)):
-    rebar_coords.append([xr[i], yr[i]])
-
-# Arrange stress block coordinates
-if Asb != 0:
-    sb_poly = []
-    for i in range(len(x_sb)):
-        sb_poly.append([x_sb[i], y_sb[i]])
-
-    # Check if rebars are inside the stress block
-    path = mpltPath.Path(sb_poly)
-    rebar_inside = path.contains_points(rebar_coords)   # Returns 'true' if rebar is inside stress block
-else:
-    # All rebars are in tension (all entries are 'False')
-    rebar_inside = [False] * len(xr)
+        # All rebars are in tension (all entries are 'False')
+        rebar_inside = [False] * len(xr)
 
 
 def compute_capacities():
-    '''
-    Returns capacities P, Mx and My
-    '''
+    '''    Returns capacities P, Mx and My    '''
     # Compute rebar forces
     Fr = []    # Forces in each rebar
     for i in range(len(xr)):
@@ -343,6 +354,7 @@ def compute_C_T_forces(Fc, Fr):
 
     return C, T
 
+
 def compute_C_T_moments(C, T, Mcx, Mcy, Mry, Mrx):
     '''
     Returns total moments generated in the section by Compression (C) and Tension (T) resisting forces.
@@ -379,6 +391,7 @@ def compute_C_T_moments(C, T, Mcx, Mcy, Mry, Mrx):
 
     return Mx_C, My_C, Mx_T, My_T
 
+
 def compute_C_T_forces_eccentricity(C, T, My_C, Mx_C, Mx_T, My_T):
     '''
     Return eccentricity of Compression (C) and Tension (T) forces.
@@ -399,6 +412,11 @@ def compute_C_T_forces_eccentricity(C, T, My_C, Mx_C, Mx_T, My_T):
         ey_T = Mx_T/T
 
     return ex_C, ey_C, ex_T, ey_T
+
+
+if __name__ == '__main__':
+    # Run ULS analysis  
+    pass
 
 #####################################################
 # LOGGING STATEMENTS
