@@ -91,20 +91,25 @@ def line_polygon_collisions(angle, y_intersect, x_vertex, y_vertex):
 
 # Calculate the area of a polygon by using the Shoelace Formula
 def polygon_area(x, y, signed=False):
-    ''' Compute the area of a non-self-intersecting polygon given the coordinates of its vertices (corners)'''
-    # Copy coordinates of first point to last entry to create a closed polygon
-    x = x + [x[0]]
-    y = y + [y[0]]
-    a1 = []
-    a2 = []
-    for i in range(len(x)-1):
-        a1.append( x[i] * y[i+1] )
-        a2.append( y[i] * x[i+1] )
+    ''' Returns the area of a non-self-intersecting polygon given the coordinates of its vertices'''
+    if x is not None and y is not None:
+        # Copy coordinates of first point to last entry to create a closed polygon
+        x = x + [x[0]]
+        y = y + [y[0]]
+        a1 = []
+        a2 = []
+        for i in range(len(x)-1):
+            a1.append( x[i] * y[i+1] )
+            a2.append( y[i] * x[i+1] )
 
-    if signed == True:
-        A = 1/2 * ( sum(a1) - sum(a2) )
+        if signed == True:
+            A = 1/2 * ( sum(a1) - sum(a2) )
+        else:
+            A = 1/2 * abs( sum(a1) - sum(a2) )
+
     else:
-        A = 1/2 * abs( sum(a1) - sum(a2) )
+        A = 0
+
     return A
 
 # Distance from point to line (optionally signed)
@@ -187,3 +192,33 @@ def order_polygon_vertices(x_vertices, y_vertices, x_section_vertices, y_section
     y_t = [y_t[i] for i in idx]
 
     return x_t, y_t
+
+
+def get_section_compression_vertices(x, y, na_y, alpha_deg, delta_v):
+    '''   Returns a list of the concrete section vertices that are in compression   '''
+
+    # NOTE 'sb_eq_eval_at_each_vertex' could be computed in a simpler way perhaps
+    def sb_eq_eval(angle, na_y, y_shift, x, y):
+        '''Evaluation of equation for inner stress block at point (x, y)'''
+        return tan(angle) * x - y + na_y - y_shift
+
+    x_compr_vertices = []
+    y_compr_vertices = []
+    alpha = alpha_deg*pi/180
+    for i in range(len(x)):
+        # Evaluation of the stress block equation will determine the compression vertices
+        sb_eq_eval_at_each_vertex = sb_eq_eval(alpha, na_y, delta_v, x[i], y[i])
+
+        if alpha_deg < 90 or alpha_deg > 270:
+            if sb_eq_eval_at_each_vertex < 0:
+                # logging.debug('Vertex at ({}, {}) is in compression'.format(x[i], y[i]))
+                x_compr_vertices.append( x[i] )
+                y_compr_vertices.append( y[i] )
+
+        if alpha_deg >= 90 and alpha_deg <= 270:
+            if sb_eq_eval_at_each_vertex > 0:
+                # logging.debug('Vertex at ({}, {}) is in compression'.format(x[i], y[i]))
+                x_compr_vertices.append( x[i] )
+                y_compr_vertices.append( y[i] )
+
+    return x_compr_vertices, y_compr_vertices
