@@ -91,7 +91,7 @@ def line_polygon_collisions(angle, y_intersect, x_vertex, y_vertex):
 
 # Calculate the area of a polygon by using the Shoelace Formula
 def polygon_area(x, y, signed=False):
-    ''' Returns the area of a non-self-intersecting polygon given the coordinates of its vertices'''
+    ''' Return the area of a non-self-intersecting polygon given the coordinates of its vertices'''
     if x is not None and y is not None:
         # Copy coordinates of first point to last entry to create a closed polygon
         x = x + [x[0]]
