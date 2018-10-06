@@ -1,7 +1,7 @@
 import matplotlib.pyplot as pyplot
 
 import geometry
-import section_calc_ULS as sc
+import section_calc as sc
 
 
 

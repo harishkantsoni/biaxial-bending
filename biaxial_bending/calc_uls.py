@@ -1,7 +1,8 @@
 from math import pi, cos, sin, tan, atan, atan2, sqrt, ceil, floor
+import logging
+
 import numpy as np
 import pandas as pd
-import logging
 import matplotlib.pyplot as plt
 import matplotlib.path as mpath
 import matplotlib.lines as mlines
@@ -12,7 +13,10 @@ from matplotlib.patches import Circle, Wedge, Polygon
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.path as mpltPath
+
 import geometry
+import section_calc as sc
+import section_plot_uls 
 
 '''
 DESCRIPTION
@@ -45,201 +49,6 @@ logging.basicConfig(filename=filename, level=logging.DEBUG, filemode='w', format
 
 np.set_printoptions(precision=2)
 
-def compute_plastic_centroid(x, y, xr, yr, As, fck, fyk):
-
-    Ac = geometry.polygon_area(x, y)
-    eta = 0.85
-    F = sum([As[i]*fyk for i in As]) + eta*(Ac - sum(As))*fck
-
-    # TODO Find correct and general arm for concrete force (polygon section)
-    F_times_dx = sum([As[i]*fyk*xr[i] for i in range(len(xr))]) + eta*(Ac - sum(As))*fck*500/2
-    F_times_dy = sum([As[i]*fyk*yr[i] for i in range(len(yr))]) + eta*(Ac - sum(As))*fck*375/2
-
-    xpl = F_times_dx/F
-    ypl = F_times_dy/F
-
-    return xpl, ypl
-
-
-def compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y):
-
-    alpha = alpha_deg * pi / 180    # [rad]
-
-    # FIXME dv fails for pure compression
-    # Find 'signed' distances from neutral axis to each vertex
-    dv = []         # Initialize list for holding distances from each vertex to neutral axis
-
-    # Define two known points on line representing neutral axis
-    # NOTE Could be done more elegant if the function allowed tan(alpha) and na_y as input
-    na_x0 = 0
-    na_y0 = tan(alpha) * na_x0 + na_y
-    na_x1 = 1
-    na_y1 = tan(alpha) * na_x1 + na_y
-
-    # Compute distances from neutral axis to each vertex (neg. value => vertex in compr. / pos. value => vertex in tension)
-    # FIXME FIX DISTANCES FOR TENSION/COMPRESSION!!!
-    for i in range(len(x)):
-        dv.append( geometry.point_to_line_dist(x[i], y[i], na_x0, na_y0, na_x1, na_y1) )
-
-    dr = []      # Distances btw. each rebar and neutral axis
-    for i in range(len(xr)):
-        dr.append( geometry.point_to_line_dist(xr[i], yr[i], na_x0, na_y0, na_x1, na_y1) )
-
-    # Reverse sign of the 'signed' distances if slope of neutral axis becomes negative
-    if alpha_deg > 90 and alpha_deg <= 270:
-        dv = list(np.negative(dv))
-        dr = list(np.negative(dr))
-
-    # Change potential distances of '-0.0' to '0.0' to avoid getting the wrong cross section state later
-    dv = [0.0 if x==-0.0 else x for x in dv]
-
-    return dv, dr
-
-
-def compute_stress_block_geomemtry(dv, dr, alpha_deg, na_y):
-    '''
-    Returns stress block geometry
-
-    INPUT
-        dv          -   List of distances from neutral axis to each section vertex
-        dr          -   List of distances from neutral axis to each rebar
-        alpha_deg   -
-        na_y        -
-
-    OUTPUT
-        x_sb        -   List of x-coordinates of stress block vertices
-        y_sb        -   List of y-coordinates of stress block vertices
-        Asb         -   Area of stress block
-        sb_cog      -   Cenntroid of stress block represented as tuple, i.e. in the format (x, y)
-    '''
-
-    # PURE TENSION CASE
-    if all(d >= 0 for d in dv):         # NOTE Test is this is true! Does not account for  gap btw. sb and tension zone
-        cross_section_state = 'PURE TENSION'
-
-        # Distance from neutral axis to extreme tension bar (all distances will be positve)
-        c = max([d for d in dr if d > 0])
-
-        # Set vertices of stress block
-        x_sb = None
-        y_sb = None
-
-        # Set stress block area
-        Asb = 0
-
-        sb_cog = None
-
-    # PURE COMPRESSION CASE
-    elif all(d <= 0 for d in dv):   # NOTE Test if this is true!
-        cross_section_state = 'PURE COMPRESSION'
-
-        # Distance from neutral axis to extreme compression fiber (all distances will be negative)
-        c = min(dv)
-
-        # Set vertices of stress block (entire section)
-        x_sb = x
-        y_sb = y
-
-        Asb = geometry.polygon_area(x, y)
-        sb_cog = geometry.polygon_centroid(x, y)
-
-    # MIXED TENSION/COMPRESSION CASE
-    else:
-        cross_section_state = 'MIXED TENSION/COMPRESSION'
-
-        # Distance from neutral axis to extreme compression fiber (pos. in tension / negative in compression)
-        # FIXME This might not be correct in all cases (if compression zone is very small, tension will dominate)
-        c = min(dv)
-
-        # FIXME Fix naming below
-        a = beta_1 * c                     # Distance from inner stress block edge to extreme compression fiber
-        delta_p = c - a                    # Perpendicular distance between neutral axis and stress block
-        alpha = alpha_deg*pi/180
-        delta_v = delta_p / cos(alpha)     # Vert. dist. in y-coordinate from neutral axis to inner edge of stress block
-
-        sb_y_intersect = na_y - delta_v     # Intersection between stress block inner edge and y-axis
-
-        # Intersections between stress block and section
-        sb_xint, sb_yint = geometry.line_polygon_collisions(alpha, sb_y_intersect, x, y)
-
-        x_compr_vertices, y_compr_vertices = geometry.get_section_compression_vertices(x, y, na_y, alpha, delta_v)
-
-        # Collect all stress block vertices
-        x_sb = sb_xint + x_compr_vertices
-        y_sb = sb_yint + y_compr_vertices
-
-        # Order stress block vertices with respect to centroid for the entire section
-        # NOTE Might fail for non-convex polygons, e.g. a T-beam
-        x_sb, y_sb = geometry.order_polygon_vertices(x_sb, y_sb, x, y, counterclockwise=True)
-
-        # Compute area of the stress block by shoelace algorithm
-        Asb = geometry.polygon_area(x_sb, y_sb)
-
-        # Compute location of centroid for stress block polygon
-        sb_cog = geometry.polygon_centroid(x_sb, y_sb)
-
-    return x_sb, y_sb, Asb, sb_cog, c
-
-
-def compute_rebar_strain(dist_to_na, c, eps_cu):
-    '''    Returns strain in each rebar as a list    '''
-    return [ri / abs(c) * eps_cu for ri in dist_to_na]
-
-
-def compute_rebar_stress(eps_r, Es, fyk):
-    '''    Returns stress in each rebar as a list    '''
-    # NOTE Could be expanded to handle both 'ULS' and 'SLS'
-    sigma_r = []
-    for i in range(len(eps_r)):
-        si = eps_r[i] * Es                   # Linear elastic stress in i'th bar
-        if abs(si) <= fyk:
-            sigma_r.append(si)               # Use computed stress if it does not exceed yielding stress
-        else:
-            sigma_r.append(np.sign(si)*fyk)  # If computed stress exceeds yield, use yielding stress instead
-
-    return sigma_r
-
-
-def get_rebars_in_stress_block(xr, yr, x_sb, y_sb):
-    '''    Returns a list with entry 'True' for rebars located inside the stress block, 'False' otherwise    '''
-    # Arrange rebar coordinates
-    rebar_coords = [[xr[i], yr[i]] for i in range(len(xr))]
-
-    # Arrange stress block coordinates
-    Asb = geometry.polygon_area(x_sb, y_sb)
-    if Asb != 0:
-        sb_poly = [[x_sb[i], y_sb[i]] for i in range(len(x_sb))]
-
-        # Check if rebars are inside the stress block
-        path = mpltPath.Path(sb_poly)
-        rebars_inside = path.contains_points(rebar_coords)   # Returns 'True' if rebar is inside stress block
-    else:
-        # All rebars are in tension (all entries are 'False')
-        rebars_inside = [False] * len(xr)
-
-    return rebars_inside
-
-    # logging.debug('bar {} is inside stress block'.format(i+1))  # TODO Create logging statement
-
-def compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside):
-    ''' Return rebar forces as list'''
-    Fr = []    # Forces in each rebar
-
-    for i in range(len(xr)):
-        if rebars_inside[i] == True:
-        # Rebar is inside stress block, correct for disp. of concrete
-            Fi = (sigma_r[i] + 0.85 * fcd) * As
-        else:
-            Fi = sigma_r[i] * As
-        Fr.append(Fi)
-
-    return Fr
-
-
-def compute_concrete_force(fck, gamma_c, Asb):
-    ''' Return compression force in the concrete. '''
-    Fc = -0.85 * fck/gamma_c * Asb  
-    return Fc
 
 def compute_capacities(xr, yr, Fr, Fc, sb_cog, Asb):
     '''    Returns capacities P, Mx and My    '''
@@ -266,87 +75,6 @@ def compute_capacities(xr, yr, Fr, Fc, sb_cog, Asb):
     return P, Mx, My
 
 
-def compute_moment_vector_angle(Mx, My):
-    '''    Returns the angle (in degrees) of the moment vector with respect to the x-axis    '''
-    if Mx == 0:
-        if My == 0:
-            phi = None
-        else:
-            phi = 90
-    else:
-        phi = atan(My/Mx)*180/pi
-
-    return phi
-
-
-def compute_C_T_forces(Fc, Fr):
-    '''    Returns Compression (C) and Tension (T) forces of the section    '''
-    Fr_compr = [p for p in Fr if p <= 0]
-    Fr_tension = [p for p in Fr if p > 0]
-    C = sum(Fr_compr) + Fc
-    T = sum(Fr_tension)
-
-    return C, T
-
-
-def compute_C_T_moments(C, T, Mcx, Mcy, Mry, Mrx, Fr):
-    '''
-    Returns total moments generated in the section by Compression (C) and Tension (T) resisting forces.
-
-    The calculation assumes a left-handed sign convention.
-    '''
-    # TODO Change loop below to list comprehensions
-    My_compr = []
-    Mx_compr = []
-    My_tension = []
-    Mx_tension = []
-    for i in range(len(Fr)):
-        if Fr[i] < 0:
-            My_compr.append(Mry[i])
-            Mx_compr.append(Mrx[i])
-        if Fr[i] > 0:
-            My_tension.append(Mry[i])
-            Mx_tension.append(Mrx[i])
-
-    # Total moment for compression resisting forces (adapted for LH sign convention)
-    if alpha_deg >= 90 and alpha_deg <= 270:
-        My_C = sum(My_compr) + Mcy
-        Mx_C = sum(Mx_compr) + Mcx
-    else:
-        My_C = -(sum(My_compr) + Mcy)
-        Mx_C = -(sum(Mx_compr) + Mcx)
-
-    # Total moment for tension resisting forces (adapted for LH sign convention)
-    if alpha_deg >= 90 and alpha_deg <= 270:
-        My_T = sum(My_tension)
-        Mx_T = sum(Mx_tension)
-    else:
-        My_T = -sum(My_tension)
-        Mx_T = -sum(Mx_tension)
-
-    return Mx_C, My_C, Mx_T, My_T
-
-
-def compute_C_T_forces_eccentricity(C, T, My_C, Mx_C, Mx_T, My_T):
-    '''    Return eccentricity of Compression (C) and Tension (T) forces.    '''
-    # Eccentricities of tension and compression forces
-    if C == 0:
-        ex_C = np.nan
-        ey_C = np.nan
-    else:
-        ex_C = My_C/C
-        ey_C = Mx_C/C
-
-    if T == 0:
-        ex_T = np.nan
-        ey_T = np.nan
-    else:
-        ex_T = My_T/T
-        ey_T = Mx_T/T
-
-    return ex_C, ey_C, ex_T, ey_T
-
-
 def compute_capacity_surface(x, y, xr, yr, fck, gamma_c, fyk, gamma_s, eps_cu,  rotation_step=5, vertical_step=10):
     ''' Returns coordinates for capacity surface of cross section (axial load and moments)'''
     # TODO Find a good way to define steps and loop over entire function
@@ -364,16 +92,22 @@ def compute_capacity_surface(x, y, xr, yr, fck, gamma_c, fyk, gamma_s, eps_cu,  
     alpha_computed = []
     for na_y in na_y_list:
         for alpha_deg in alpha_list:
+
+            # Perform cross section analysis
+            dv, dr = sc.compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y)
+            x_sb, y_sb, Asb, sb_cog, c = sc.compute_stress_block_geomemtry(x, y, dv, dr, alpha_deg, na_y)
+            eps_r = sc.compute_rebar_strain(dr, c, eps_cu)
+            sigma_r = sc.compute_rebar_stress(eps_r, Es, fyk)
+            rebars_inside = sc.get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
+            Fr = sc.compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside)
+            Fc = sc.compute_concrete_force(fck, gamma_c, Asb)
+            
+            # Compute capacities
+            P, Mx, My = compute_capacities(xr, yr, Fr, Fc, sb_cog, Asb)
+
+            # Update lists of calculated pairs of vertical local and anlge for neutral axis
             na_y_computed.append(na_y)
             alpha_computed.append(alpha_deg)
-            dv, dr = compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y)
-            x_sb, y_sb, Asb, sb_cog, c = compute_stress_block_geomemtry(dv, dr, alpha_deg, na_y)
-            eps_r = compute_rebar_strain(dr, c, eps_cu)
-            sigma_r = compute_rebar_stress(eps_r, Es, fyk)
-            rebars_inside = get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
-            Fr = compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside)
-            Fc = compute_concrete_force(fck, gamma_c, Asb)
-            P, Mx, My = compute_capacities(xr, yr, Fr, Fc, sb_cog, Asb)
 
             # Store iteration results
             P_list.append(P)
@@ -381,9 +115,6 @@ def compute_capacity_surface(x, y, xr, yr, fck, gamma_c, fyk, gamma_s, eps_cu,  
             My_list.append(My)
 
     return P_list, Mx_list, My_list, na_y_computed, alpha_computed
-
-
-
 
 
 if __name__ == '__main__':
@@ -429,12 +160,12 @@ if __name__ == '__main__':
 
     P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, fck, gamma_c, fyk, gamma_s, eps_cu)
 
-    plot_capacity_surface(Mx, My, P)
+    section_plot_uls.plot_capacity_surface(Mx, My, P)
 
     df = pd.DataFrame({'Mx': Mx, 'My': My, 'P': P, 'na_y': na_y_computed, 'alpha': alpha_computed})
     df.to_csv('df_results.csv', sep='\t')
 
-    plot_ULS_section(x, y, xr, yr, -28, 0)
+    section_plot_uls.plot_ULS_section(x, y, xr, yr, -28, 0)
 
 #####################################################
 # LOGGING STATEMENTS
