@@ -362,8 +362,6 @@ def compute_capacity_surface(x, y, xr, yr, fck, gamma_c, fyk, gamma_s, eps_cu,  
     My_list = []
     na_y_computed = []
     alpha_computed = []
-
-    # Loop over different positions of the neutral axis to create the capacity surface
     for na_y in na_y_list:
         for alpha_deg in alpha_list:
             na_y_computed.append(na_y)
