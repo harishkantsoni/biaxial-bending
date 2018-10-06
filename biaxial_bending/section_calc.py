@@ -1,4 +1,4 @@
-# Builtin libraries
+# Built-in libraries
 from math import pi, cos, sin, tan, atan, atan2, sqrt, ceil, floor
 
 # Third party libraries
@@ -166,12 +166,12 @@ def compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
 
 
 def compute_rebar_strain(dist_to_na, c, eps_cu):
-    '''    Returns strain in each rebar as a list    '''
+    '''    Return strain in each rebar as a list    '''
     return [ri / abs(c) * eps_cu for ri in dist_to_na]
 
 
 def compute_rebar_stress(eps_r, Es, fyd):
-    '''    Returns stress in each rebar as a list    '''
+    '''    Return stress in each rebar as a list    '''
     # NOTE Could be expanded to handle both 'ULS' and 'SLS'
     # NOTE! CAN NOT HANDLE SLS AT THE MOMENT!
     sigma_r = []
@@ -254,9 +254,30 @@ def compute_C_T_forces(Fc, Fr):
     return C, T
 
 
-def compute_C_T_moments(C, T, Mcx, Mcy, Mry, Mrx, Fr):
+def compute_moment_contributions(xr, yr, Asb, sb_cog, Fc, Fr):
+    ''' Return the moment contributions from concrete and rebars in the cross section. ''' 
+
+    if Asb == 0:
+        Mcx = 0
+        Mcy = 0
+    else:
+        # FIXME Moment lever arm should be distance between stress block centroid and centroid of transformed section __
+        # FIXME __ Plastic centroid of transformed section happens to be at (0, 0) in the example in MacGregor's example
+        # Moment contribution from concrete in x-direction
+        Mcx = -Fc * sb_cog[1]
+        # Moment contribution from concrete in y-direction
+        Mcy = -Fc * sb_cog[0]
+
+    # Moment contribution fram rebars about x- and y-axis (according to moment sign convention)
+    # FIXME Lever arms should be taken wrt. the centroid of the transformed section, i.e. including reinforcement
+    Mrx = [-Fr[i] * yr[i] for i in range(len(xr))]
+    Mry = [-Fr[i] * xr[i] for i in range(len(xr))]
+
+    return Mcx, Mcy, Mrx, Mry
+
+def compute_C_T_moments(C, T, Mcx, Mcy, Mry, Mrx, Fr, alpha_deg):
     '''
-    Returns total moments generated in the section by Compression (C) and Tension (T) resisting forces.
+    Return total moments generated in the section by Compression (C) and Tension (T) resisting forces.
 
     The calculation assumes a left-handed sign convention.
     '''
@@ -310,3 +331,16 @@ def compute_C_T_forces_eccentricity(C, T, My_C, Mx_C, Mx_T, My_T):
         ey_T = Mx_T/T
 
     return ex_C, ey_C, ex_T, ey_T
+
+
+def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=0.8):
+    ''' Perform cross section analysis '''
+    dv, dr = compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y)
+    x_sb, y_sb, Asb, sb_cog, c = compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y)
+    eps_r = compute_rebar_strain(dr, c, eps_cu)
+    sigma_r = compute_rebar_stress(eps_r, Es, fyd)
+    rebars_inside = get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
+    Fr = compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=lambda_)
+    Fc = compute_concrete_force(fcd, Asb)
+
+    return Fc, Fr, Asb, sb_cog, x_sb, y_sb

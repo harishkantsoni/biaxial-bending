@@ -49,23 +49,8 @@ logging.basicConfig(filename=filename, level=logging.DEBUG, filemode='w', format
 np.set_printoptions(precision=2)
 
 
-def compute_capacities(xr, yr, Fr, Fc, sb_cog, Asb):
+def compute_capacities(Fc, Fr, Mcx, Mcy, Mrx, Mry):
     '''    Returns capacities P, Mx and My    '''
-
-    # Moment contribution fram rebars about x- and y-axis (according to moment sign convention)
-    # FIXME Lever arms should be taken wrt. the centroid of the transformed section, i.e. including reinforcement
-    Mrx = [-Fr[i] * yr[i] for i in range(len(xr))]
-    Mry = [-Fr[i] * xr[i] for i in range(len(xr))]
-
-    if Asb == 0:
-        Mcx = 0
-        Mcy = 0
-    else:
-        # FIXME Moment lever arm should be distance between stress block centroid and centroid of transformed section __
-        # FIXME __ Plastic centroid of transformed section happens to be at (0, 0) in the example in MacGregor's example
-        Mcx = -Fc * sb_cog[1]    # Moment contribution from concrete in x-direction
-        Mcy = -Fc * sb_cog[0]    # Moment contribution from concrete in y-direction
-
     # Total capacities
     P = sum(Fr) + Fc
     Mx = sum(Mrx) + Mcx
@@ -74,7 +59,7 @@ def compute_capacities(xr, yr, Fr, Fc, sb_cog, Asb):
     return P, Mx, My
 
 
-def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, lambda_=0.80,  rotation_step=5, vertical_step=10):
+def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.80,  rotation_step=5, vertical_step=10):
     ''' Returns coordinates for capacity surface of cross section (axial load and moments)'''
     # TODO Find a good way to define steps and loop over entire function
     # TODO Find a better way to represent increments for na_y, right now 0 is being computed twice __
@@ -92,17 +77,23 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, lambda_=0.80,  
     for na_y in na_y_list:
         for alpha_deg in alpha_list:
 
-            # Perform cross section analysis (NOTE This should maybe be a function itself returning Fc and Fr)
-            dv, dr = sc.compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y)
-            x_sb, y_sb, Asb, sb_cog, c = sc.compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y)
-            eps_r = sc.compute_rebar_strain(dr, c, eps_cu)
-            sigma_r = sc.compute_rebar_stress(eps_r, Es, fyd)
-            rebars_inside = sc.get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
-            Fr = sc.compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=lambda_)
-            Fc = sc.compute_concrete_force(fcd, Asb)
+            # # Perform cross section analysis (NOTE This should maybe be a function itself returning Fc and Fr)
+            # dv, dr = sc.compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y)
+            # x_sb, y_sb, Asb, sb_cog, c = sc.compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y)
+            # eps_r = sc.compute_rebar_strain(dr, c, eps_cu)
+            # sigma_r = sc.compute_rebar_stress(eps_r, Es, fyd)
+            # rebars_inside = sc.get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
+            # Fr = sc.compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=lambda_)
+            # Fc = sc.compute_concrete_force(fcd, Asb)
             
+            # Perform cross section ULS analysis
+            Fc, Fr, Asb, sb_cog, _, _ = sc.perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=0.80)
+            
+            # Compute individual moments generated in the section
+            Mcx, Mcy, Mrx, Mry = sc.compute_moment_contributions(xr, yr, Asb, sb_cog, Fc, Fr)
+
             # Compute capacities
-            P, Mx, My = compute_capacities(xr, yr, Fr, Fc, sb_cog, Asb)
+            P, Mx, My = compute_capacities(Fc, Fr, Mcx, Mcy, Mrx, Mry)
 
             # Update lists of calculated pairs of vertical local and anlge for neutral axis
             na_y_computed.append(na_y)
@@ -128,6 +119,7 @@ if __name__ == '__main__':
     FYK = 60     # [ksi]
     GAMMA_S = 1.0
     FYD = FYK/GAMMA_S
+    AS = 1  # [in^2]
 
     # Define concrete geometry by polygon vertices
     x = [-8, 8, 8, -8]
@@ -158,16 +150,30 @@ if __name__ == '__main__':
     na_y = -2       # [in] Distance from top of section to intersection btw. neutral axis and y-axis
     # NOTE na_y Should be infinite if alpha is 90 or 270
 
-    P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, FCD, FYD, ES, EPS_CU, lambda_=LAMBDA)
+    P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, FCD, FYD, ES, EPS_CU, AS, lambda_=LAMBDA)
 
     # Plot capacity surface
-    section_plot_uls.plot_capacity_surface(Mx, My, P)
+    # section_plot_uls.plot_capacity_surface(Mx, My, P)
 
     df = pd.DataFrame({'Mx': Mx, 'My': My, 'P': P, 'na_y': na_y_computed, 'alpha': alpha_computed})
     df.to_csv('df_results.csv', sep='\t')
 
+
+    # Choose a location of the neutral axis
+    alpha_deg = 20
+    na_y = -2
+
+    # Compute force for neutral axis location
+    Fc, Fr, Asb, sb_cog, x_sb, y_sb = sc.perform_section_analysis(x, y, xr, yr, FCD, FYD, ES, EPS_CU, AS, alpha_deg, na_y, lambda_=LAMBDA)
+
+    # Compute individual moments generated in the section
+    Mcx, Mcy, Mrx, Mry = sc.compute_moment_contributions(xr, yr, Asb, sb_cog, Fc, Fr)
+
+    # Compute capacities 
+    P, Mx, My = compute_capacities(Fc, Fr, Mcx, Mcy, Mrx, Mry)
+
     # Plot section for specific location of neutral axis
-    section_plot_uls.plot_ULS_section(x, y, xr, yr, FYD, ES, EPS_CU, -28, 0)
+    section_plot_uls.plot_ULS_section(x, y, xr, yr, x_sb, y_sb, Asb, sb_cog, Fc, Fr, Mcx, Mcy, Mrx, Mry, Mx, My, alpha_deg, na_y)
 
 #####################################################
 # LOGGING STATEMENTS
