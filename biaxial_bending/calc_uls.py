@@ -12,7 +12,6 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Circle, Wedge, Polygon
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-import matplotlib.path as mpltPath
 
 import geometry
 import section_calc as sc
@@ -75,7 +74,7 @@ def compute_capacities(xr, yr, Fr, Fc, sb_cog, Asb):
     return P, Mx, My
 
 
-def compute_capacity_surface(x, y, xr, yr, fck, gamma_c, fyk, gamma_s, eps_cu,  rotation_step=5, vertical_step=10):
+def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, lambda_=0.80,  rotation_step=5, vertical_step=10):
     ''' Returns coordinates for capacity surface of cross section (axial load and moments)'''
     # TODO Find a good way to define steps and loop over entire function
     # TODO Find a better way to represent increments for na_y, right now 0 is being computed twice __
@@ -93,14 +92,14 @@ def compute_capacity_surface(x, y, xr, yr, fck, gamma_c, fyk, gamma_s, eps_cu,  
     for na_y in na_y_list:
         for alpha_deg in alpha_list:
 
-            # Perform cross section analysis
+            # Perform cross section analysis (NOTE This should maybe be a function itself returning Fc and Fr)
             dv, dr = sc.compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y)
-            x_sb, y_sb, Asb, sb_cog, c = sc.compute_stress_block_geomemtry(x, y, dv, dr, alpha_deg, na_y)
+            x_sb, y_sb, Asb, sb_cog, c = sc.compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y)
             eps_r = sc.compute_rebar_strain(dr, c, eps_cu)
-            sigma_r = sc.compute_rebar_stress(eps_r, Es, fyk)
+            sigma_r = sc.compute_rebar_stress(eps_r, Es, fyd)
             rebars_inside = sc.get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
-            Fr = sc.compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside)
-            Fc = sc.compute_concrete_force(fck, gamma_c, Asb)
+            Fr = sc.compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=lambda_)
+            Fc = sc.compute_concrete_force(fcd, Asb)
             
             # Compute capacities
             P, Mx, My = compute_capacities(xr, yr, Fr, Fc, sb_cog, Asb)
@@ -121,14 +120,14 @@ if __name__ == '__main__':
 
     # Define materials
     # NOTE eps_cu = 0.00035 in Eurocode for concrete strengths < C50
-    eps_cu = 0.003      # Compressive crushing strain of concrete (strain when cross section capacity is reached)
-    fck =  4    # [ksi]
-    gamma_c = 1.0
-    fcd = fck/gamma_c
-    Es = 29000  # [ksi]
-    fyk = 60     # [ksi]
-    gamma_s = 1.0
-    fyd = fyk/gamma_s
+    EPS_CU = 0.003      # Compressive crushing strain of concrete (strain when cross section capacity is reached)
+    FCK =  4    # [ksi]
+    GAMMA_C = 1.0
+    FCD = FCK/GAMMA_C
+    ES = 29000  # [ksi]
+    FYK = 60     # [ksi]
+    GAMMA_S = 1.0
+    FYD = FYK/GAMMA_S
 
     # Define concrete geometry by polygon vertices
     x = [-8, 8, 8, -8]
@@ -149,6 +148,7 @@ if __name__ == '__main__':
 
     # NOTE lambda = 0.8 in Eurocode for concrete strengths < C50
     beta_1 = 0.85      # Factor for compression zone height of Whitney stress block
+    LAMBDA = beta_1
 
     # FIXME ZeroDivisionError in 'eps_r.append(dr[i] / c * eps_cu)' for (alpha, na_y)=(45, -16) or (0, -8) ___
     # FIXME ___ Happens just as the section goes from almost pure compression to pure compression. See plot!
@@ -158,14 +158,16 @@ if __name__ == '__main__':
     na_y = -2       # [in] Distance from top of section to intersection btw. neutral axis and y-axis
     # NOTE na_y Should be infinite if alpha is 90 or 270
 
-    P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, fck, gamma_c, fyk, gamma_s, eps_cu)
+    P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, FCD, FYD, ES, EPS_CU, lambda_=LAMBDA)
 
+    # Plot capacity surface
     section_plot_uls.plot_capacity_surface(Mx, My, P)
 
     df = pd.DataFrame({'Mx': Mx, 'My': My, 'P': P, 'na_y': na_y_computed, 'alpha': alpha_computed})
     df.to_csv('df_results.csv', sep='\t')
 
-    section_plot_uls.plot_ULS_section(x, y, xr, yr, -28, 0)
+    # Plot section for specific location of neutral axis
+    section_plot_uls.plot_ULS_section(x, y, xr, yr, FYD, ES, EPS_CU, -28, 0)
 
 #####################################################
 # LOGGING STATEMENTS

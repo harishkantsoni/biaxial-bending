@@ -3,6 +3,7 @@ from math import pi, cos, sin, tan, atan, atan2, sqrt, ceil, floor
 
 # Third party libraries
 import numpy as np
+import matplotlib.path as mpltPath
 
 # Project specific modules
 import geometry
@@ -68,7 +69,7 @@ def compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y):
     return dv, dr
 
 
-def compute_stress_block_geomemtry(x, y, dv, dr, alpha_deg, na_y, beta_1=0.85):
+def compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
     '''
     Returns stress block geometry
 
@@ -129,7 +130,7 @@ def compute_stress_block_geomemtry(x, y, dv, dr, alpha_deg, na_y, beta_1=0.85):
         # FIXME Fix naming below
         # NOTE beta_1=0.85 from ACI should be replaced by lambda = 0.8 from Eurocode for concrete strengths < C50 (change also default function input)
         # Distance from inner stress block edge to extreme compression fiber
-        a = beta_1 * c
+        a = lambda_ * c
         # Perpendicular distance between neutral axis and stress block
         delta_p = c - a
         alpha = alpha_deg*pi/180
@@ -169,19 +170,20 @@ def compute_rebar_strain(dist_to_na, c, eps_cu):
     return [ri / abs(c) * eps_cu for ri in dist_to_na]
 
 
-def compute_rebar_stress(eps_r, Es, fyk):
+def compute_rebar_stress(eps_r, Es, fyd):
     '''    Returns stress in each rebar as a list    '''
     # NOTE Could be expanded to handle both 'ULS' and 'SLS'
+    # NOTE! CAN NOT HANDLE SLS AT THE MOMENT!
     sigma_r = []
     for i in range(len(eps_r)):
         # Linear elastic stress in i'th bar
         si = eps_r[i] * Es
-        if abs(si) <= fyk:
+        if abs(si) <= fyd:
             # Use computed stress if it does not exceed yielding stress
             sigma_r.append(si)
         else:
             # If computed stress exceeds yield, use yielding stress instead
-            sigma_r.append(np.sign(si)*fyk)
+            sigma_r.append(np.sign(si)*fyd)
 
     return sigma_r
 
@@ -208,14 +210,14 @@ def get_rebars_in_stress_block(xr, yr, x_sb, y_sb):
     # logging.debug('bar {} is inside stress block'.format(i+1))  # TODO Create logging statement
 
 
-def compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside):
+def compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=0.8):
     ''' Return rebar forces as list'''
     Fr = []    # Forces in each rebar
 
     for i in range(len(xr)):
         if rebars_inside[i] == True:
             # Rebar is inside stress block, correct for disp. of concrete
-            Fi = (sigma_r[i] + 0.85 * fcd) * As
+            Fi = (sigma_r[i] + lambda_ * fcd) * As
         else:
             Fi = sigma_r[i] * As
         Fr.append(Fi)
@@ -223,9 +225,9 @@ def compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside):
     return Fr
 
 
-def compute_concrete_force(fck, gamma_c, Asb):
+def compute_concrete_force(fcd, Asb):
     ''' Return compression force in the concrete. '''
-    Fc = -0.85 * fck/gamma_c * Asb
+    Fc = -0.85 * fcd * Asb
     return Fc
 
 

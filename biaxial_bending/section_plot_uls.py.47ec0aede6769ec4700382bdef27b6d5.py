@@ -35,7 +35,7 @@ def plot_capacity_surface(X, Y, Z, plot_type='scatter', labels=['Mx', 'My', 'P']
     plt.show()
 
 
-# def plot_ULS_section(x, y, xr, yr, fyd, Es, eps_cu, na_y, alpha_deg):
+def plot_ULS_section(x, y, xr, yr, fyd, Es, eps_cu, na_y, alpha_deg):
 def plot_ULS_section(x, y, xr, yr, fyd, Es, eps_cu, na_y, alpha_deg):
     '''    Returns a plot of ULS section state for given neutral axis location    '''
     # dv, dr = sc.compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y)
