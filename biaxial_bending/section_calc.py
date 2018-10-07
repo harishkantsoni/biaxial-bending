@@ -32,7 +32,7 @@ def compute_plastic_centroid(x, y, xr, yr, As, fck, fyk):
     return xpl, ypl
 
 
-def compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y):
+def compute_dist_to_na(x, y, xr, yr, alpha_deg, na_y):
 
     alpha = alpha_deg * pi / 180    # [rad]
 
@@ -89,7 +89,7 @@ def compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
     '''
 
     # PURE TENSION CASE
-    # NOTE Test is this is true! Does not account for  gap btw. sb and tension zone
+    # NOTE Test if this is true! Does not account for gap btw. sb and tension zone
     if all(d >= 0 for d in dv):
         cross_section_state = 'PURE TENSION'
 
@@ -126,26 +126,27 @@ def compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
         # Distance from neutral axis to extreme compression fiber (pos. in tension / negative in compression)
         # FIXME This might not be correct in all cases (if compression zone is very small, tension will dominate)
         c = min(dv)
-
-        # FIXME Fix naming below
         # NOTE beta_1=0.85 from ACI should be replaced by lambda = 0.8 from Eurocode for concrete strengths < C50 (change also default function input)
-        # Distance from inner stress block edge to extreme compression fiber
+        # Signed distance from inner stress block edge to extreme compression fiber
         a = lambda_ * c
-        # Perpendicular distance between neutral axis and stress block
+
+        # Signed perpendicular distance between neutral axis and stress block   
         delta_p = c - a
-        alpha = alpha_deg*pi/180
+      
         # Vert. dist. in y-coordinate from neutral axis to inner edge of stress block
-        delta_v = delta_p / cos(alpha)
+        delta_v = delta_p / cos(alpha_deg*pi/180)
 
-        # Intersection between stress block inner edge and y-axis
-        sb_y_intersect = na_y - delta_v
+        # Intersection between stress block inner edge and y-axis (parallel with neutral axis)
+        if alpha_deg == 90:
+            sb_y_intersect = delta_v - na_y     # NOTE I can't really explain why this conditional is necessary, but it fixed the immediate problem
+        else:
+            sb_y_intersect = na_y - delta_v
 
-        # Intersections between stress block and section
-        sb_xint, sb_yint = geometry.line_polygon_collisions(
-            alpha, sb_y_intersect, x, y)
+        # Intersections between inner edge of stress block (parrallel with neutral axis) and section
+        sb_xint, sb_yint = geometry.line_polygon_collisions(alpha_deg, sb_y_intersect, x, y)
 
-        x_compr_vertices, y_compr_vertices = geometry.get_section_compression_vertices(
-            x, y, na_y, alpha, delta_v)
+        # Find concrete section vertices that are in compression
+        x_compr_vertices, y_compr_vertices = geometry.get_section_compression_vertices(x, y, na_y, alpha_deg, delta_v)
 
         # Collect all stress block vertices
         x_sb = sb_xint + x_compr_vertices
@@ -153,8 +154,7 @@ def compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
 
         # Order stress block vertices with respect to centroid for the entire section
         # NOTE Might fail for non-convex polygons, e.g. a T-beam
-        x_sb, y_sb = geometry.order_polygon_vertices(
-            x_sb, y_sb, x, y, counterclockwise=True)
+        x_sb, y_sb = geometry.order_polygon_vertices(x_sb, y_sb, x, y, counterclockwise=True)
 
         # Compute area of the stress block by shoelace algorithm
         Asb = geometry.polygon_area(x_sb, y_sb)
@@ -275,6 +275,7 @@ def compute_moment_contributions(xr, yr, Asb, sb_cog, Fc, Fr):
 
     return Mcx, Mcy, Mrx, Mry
 
+
 def compute_C_T_moments(C, T, Mcx, Mcy, Mry, Mrx, Fr, alpha_deg):
     '''
     Return total moments generated in the section by Compression (C) and Tension (T) resisting forces.
@@ -335,8 +336,8 @@ def compute_C_T_forces_eccentricity(C, T, My_C, Mx_C, Mx_T, My_T):
 
 def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=0.8):
     ''' Perform cross section analysis '''
-    dv, dr = compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y)
-    x_sb, y_sb, Asb, sb_cog, c = compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y)
+    dv, dr = compute_dist_to_na(x, y, xr, yr, alpha_deg, na_y)
+    x_sb, y_sb, Asb, sb_cog, c = compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=lambda_)
     eps_r = compute_rebar_strain(dr, c, eps_cu)
     sigma_r = compute_rebar_stress(eps_r, Es, fyd)
     rebars_inside = get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
@@ -344,3 +345,16 @@ def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, 
     Fc = compute_concrete_force(fcd, Asb)
 
     return Fc, Fr, Asb, sb_cog, x_sb, y_sb
+
+
+if __name__ == '__main__':
+
+    x = [-8, 8, 8, -8]
+    y = [8, 8, -8, -8]
+    alpha_deg = 30
+    na_y = -2
+    # Distance from neutral axis to concrete section vertices
+    dv = [-12.66, -4.66, 9.20, 1.20]
+    # Distance from neutral axis to rebars
+    dr = [-9.38, -6.58, -3.78, 1.07, 5.92, 3.12, 0.32, -4.53]
+    x_sb, y_sb, _, _, _ = compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.85)

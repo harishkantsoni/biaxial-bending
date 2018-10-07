@@ -76,18 +76,9 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.8
     alpha_computed = []
     for na_y in na_y_list:
         for alpha_deg in alpha_list:
-
-            # # Perform cross section analysis (NOTE This should maybe be a function itself returning Fc and Fr)
-            # dv, dr = sc.compute_dist_from_na_to_vertices(x, y, xr, yr, alpha_deg, na_y)
-            # x_sb, y_sb, Asb, sb_cog, c = sc.compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y)
-            # eps_r = sc.compute_rebar_strain(dr, c, eps_cu)
-            # sigma_r = sc.compute_rebar_stress(eps_r, Es, fyd)
-            # rebars_inside = sc.get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
-            # Fr = sc.compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=lambda_)
-            # Fc = sc.compute_concrete_force(fcd, Asb)
             
             # Perform cross section ULS analysis
-            Fc, Fr, Asb, sb_cog, _, _ = sc.perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=0.80)
+            Fc, Fr, Asb, sb_cog, _, _ = sc.perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=lambda_)
             
             # Compute individual moments generated in the section
             Mcx, Mcy, Mrx, Mry = sc.compute_moment_contributions(xr, yr, Asb, sb_cog, Fc, Fr)
@@ -127,7 +118,7 @@ if __name__ == '__main__':
     # x = [8, 8, -8]
     # y = [8, -8, -8]
 
-    # Define rebar locations and sizes
+    # Define rebar locations
     xr = [-5.6, 0,   5.6,  5.6,  5.6,  0,   -5.6, -5.6]
     yr = [ 5.6, 5.6, 5.6,  0,   -5.6, -5.6, -5.6,  0]
     # xr = [5.6,  5.6,  5.6,  1.0,   -3.5, 1.0]
@@ -153,14 +144,14 @@ if __name__ == '__main__':
     P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, FCD, FYD, ES, EPS_CU, AS, lambda_=LAMBDA)
 
     # Plot capacity surface
-    # section_plot_uls.plot_capacity_surface(Mx, My, P)
+    section_plot_uls.plot_capacity_surface(Mx, My, P, plot_type='scatter')
 
     df = pd.DataFrame({'Mx': Mx, 'My': My, 'P': P, 'na_y': na_y_computed, 'alpha': alpha_computed})
     df.to_csv('df_results.csv', sep='\t')
 
 
     # Choose a location of the neutral axis
-    alpha_deg = 20
+    alpha_deg = 89
     na_y = -2
 
     # Compute force for neutral axis location
@@ -174,6 +165,7 @@ if __name__ == '__main__':
 
     # Plot section for specific location of neutral axis
     section_plot_uls.plot_ULS_section(x, y, xr, yr, x_sb, y_sb, Asb, sb_cog, Fc, Fr, Mcx, Mcy, Mrx, Mry, Mx, My, alpha_deg, na_y)
+
 
 #####################################################
 # LOGGING STATEMENTS

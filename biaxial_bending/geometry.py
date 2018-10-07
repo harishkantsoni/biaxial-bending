@@ -5,10 +5,10 @@ import numpy as np
 
 
 # Compute intersection between line and polygon
-def line_polygon_collisions(angle, y_intersect, x_vertex, y_vertex):
+def line_polygon_collisions(angle_deg, y_intersect, x_vertex, y_vertex):
     '''
-    Find intersection points between a line and a polygon. If no intersections are present, the original polygon
-    vertices are returned.
+    Return intersection points between a line and a polygon. If no intersections are present, return original polygon
+    vertices.
 
     INPUT ARGUMENTS:
         angle           -   Angle of line with x-axis (in radians)
@@ -17,22 +17,23 @@ def line_polygon_collisions(angle, y_intersect, x_vertex, y_vertex):
         y_vertex        -   y-coordinates of polygon vertices
 
     OUTPUT:
-        xint            -   x-coordinate for intersections
-        yint            -   y-coordinate for intersections
+        xint            -   x-coordinates for intersections
+        yint            -   y-coordinates for intersections
 
     '''
-    # TODO Fill description for section_state above!
     # NOTE Perhaps 'None' should be returned if no intersections are found
 
+    # Convert angle input to radians
+    angle = angle_deg * pi / 180 
+
     # Define equation for line
-    def line_eq(angle, na_y, x, y):
+    def line_eq(angle, na_y, x, y): # Note: Angle assumed in radians
         return tan(angle) * x - y + na_y
 
-    vertex_eval = []
     # Evaluate the neutral axis linear equation for each vertex
-    for i in range(len(x_vertex)):
-        vertex_eval.append( line_eq(angle, y_intersect, x_vertex[i], y_vertex[i]) )
+    vertex_eval = [line_eq(angle, y_intersect, x_vertex[i], y_vertex[i]) for i in range(len(x_vertex))]
 
+    # TODO Code below can be shortened considerably by use of list comprehensions and the all() method
     # If corners are either all positive or all negative, the neutral axis is outside the cross section
     count_pos = 0
     count_neg = 0
@@ -45,12 +46,10 @@ def line_polygon_collisions(angle, y_intersect, x_vertex, y_vertex):
     if count_neg == len(vertex_eval):
         # Neutral axis is located outside of cross section, return polygon vertices as output
         return x_vertex, y_vertex
-        # TODO Print statement below should be made by logging instead
-        # print('Neutral axis is outside of cross section - Entire section is in compression')
+        # TODO Logging! print('Neutral axis is outside of cross section - Entire section is in compression')
     elif count_pos == len(vertex_eval):
         # Neutral axis is located outside of cross section, return polygon vertices as output
-        # TODO Print statement below should be made by logging instead
-        # print('Neutral axis is outside of cross section - Entire section is in tension')
+        # TODO Logging! print('Neutral axis is outside of cross section - Entire section is in tension')
         return x_vertex, y_vertex
     else:
         # Neutral axis is inside the cross section (impliying two intersecting points with the section boundary)
@@ -64,28 +63,32 @@ def line_polygon_collisions(angle, y_intersect, x_vertex, y_vertex):
         yint = []           # Initiate list for holding two y-coordinates for intersections btw. neutral axis and section
         for i in range(len(vertex_eval)-1):
             if np.sign(vertex_eval[i]) != np.sign(vertex_eval[i+1]):
+
+                # NOTE DOES THIS ASSUME THAT VERTICES ARE ORDERED??????
+
                 # Intersection detected
-                # TODO Print statement below should be made by logging instead
-                # print('Intersection detected between corner {} and {}'.format(i+1, i+2))    # Count starts from 0
+                # TODO Logging! print('Intersection detected between corner {} and {}'.format(i+1, i+2))    # Count starts from 0
                 # Determine equation for line between corners (y = mx + k)
                 x1 = xv[i]
                 y1 = yv[i]
                 x2 = xv[i+1]
                 y2 = yv[i+1]
+
                 if x1 == x2:
-                    # Line is vertical => slope is infinite. Line equation is just equal to x-coordinate
-                    x = x1                                 # x-coordinate of intersection
-                    y = tan(angle) * x + y_intersect       # y-coordinate of intersection
+                    # Cross section line is vertical => slope is infinite. Line equation is just equal to x-coordinate
+                    x = x1                                      # x-coordinate of intersection
+                    y = tan(angle) * x + y_intersect            # y-coordinate of intersection
                     xint.append(x)
                     yint.append(y)
                 else:
-                    m = (y2 - y1) / (x2 - x1)       # Slope of line btw. corner points
-                    k = y2 - m*x2                   # Intersection with y-axis for line btw. corner points
+                    m = (y2 - y1) / (x2 - x1)                   # Slope of line btw. corner points
+                    k = y2 - m * x2                             # Intersection with y-axis for line btw. corner points
 
                     x = (y_intersect - k) / (m - tan(angle))    # x-coordinate for intersection
                     y =  m * x + k                              # y-coordinate for intersection
                     xint.append(x)
                     yint.append(y)
+
     return xint, yint
 
 
@@ -222,3 +225,8 @@ def get_section_compression_vertices(x, y, na_y, alpha_deg, delta_v):
                 y_compr_vertices.append( y[i] )
 
     return x_compr_vertices, y_compr_vertices
+
+
+
+if __name__ == '__main__':
+    pass
