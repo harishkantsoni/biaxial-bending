@@ -11,6 +11,8 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Circle, Wedge, Polygon
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.spatial import ConvexHull
 
 # Project specific libraries
 import geometry
@@ -27,6 +29,12 @@ def plot_capacity_surface(X, Y, Z, plot_type='scatter', labels=['Mx', 'My', 'P']
 
     if plot_type == 'wireframe':
         wire = ax.plot_wireframe(X, Y, Z, linewidth=0.2, antialiased=True)
+
+    if plot_type == 'convex_hull':
+        hull = ConvexHull(np.array(X, Y, Z))
+        plt.plot(points[:, 0], points[:, 1], 'o')
+        for simplex in hull.simplices:
+            plt.plot(points[simplex, 0], points[simplex, 1], 'k-')
 
     else:
         scat = ax.scatter(X, Y, Z, linewidth=0.2, antialiased=True)
@@ -85,6 +93,7 @@ def plot_ULS_section(x, y, xr, yr, x_sb, y_sb, Asb, sb_cog, Fc, Fr, Mcx, Mcy, Mr
         ax.add_patch(patches.Polygon((sb_coords), facecolor='silver', edgecolor='k', linewidth=1))
 
     # Plot centroid of stress block
+
     if Asb != 0:
         plt.plot(sb_cog[0], sb_cog[1], 'x', color='grey', markersize='4')
 

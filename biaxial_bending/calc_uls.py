@@ -21,7 +21,9 @@ import section_plot_uls
 DESCRIPTION
 
     Sign convention
-      Coordinate system           :   left handed
+      Positive x- and y-axis points to the right and upwards, respectively. Positive moments Mx cause compression at 
+      positive y-coordinates, while positive moments My cause compression at positve x-coordinates.  
+      
       Tension                     :   Positive
       Compression                 :   Negative
 
@@ -110,7 +112,7 @@ if __name__ == '__main__':
     FYK = 60     # [ksi]
     GAMMA_S = 1.0
     FYD = FYK/GAMMA_S
-    AS = 1  # [in^2]
+    AS = 0.79  # [in^2]
 
     # Define concrete geometry by polygon vertices
     x = [-8, 8, 8, -8]
@@ -127,7 +129,6 @@ if __name__ == '__main__':
     # Ø = ['insert rebar sizes']    # IMPLEMENT
     Ø = 1
     # As = pi * (Ø / 2)**2   # [in^2]    FIXME This is only the area of a single bar
-    As = 0.79
 
     # NOTE lambda = 0.8 in Eurocode for concrete strengths < C50
     beta_1 = 0.85      # Factor for compression zone height of Whitney stress block
@@ -137,22 +138,17 @@ if __name__ == '__main__':
     # FIXME ___ Happens just as the section goes from almost pure compression to pure compression. See plot!
 
     # FIXME Compression zone is not computed correctly if na is below section, FIX!!! Same problem as above comment I think!
-    alpha_deg = 15               # [deg]
+    alpha_deg = 90               # [deg]
     na_y = -2       # [in] Distance from top of section to intersection btw. neutral axis and y-axis
     # NOTE na_y Should be infinite if alpha is 90 or 270
 
     P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, FCD, FYD, ES, EPS_CU, AS, lambda_=LAMBDA)
 
     # Plot capacity surface
-    section_plot_uls.plot_capacity_surface(Mx, My, P, plot_type='scatter')
+    section_plot_uls.plot_capacity_surface(Mx, My, P, plot_type='convex_hull')
 
     df = pd.DataFrame({'Mx': Mx, 'My': My, 'P': P, 'na_y': na_y_computed, 'alpha': alpha_computed})
     df.to_csv('df_results.csv', sep='\t')
-
-
-    # Choose a location of the neutral axis
-    alpha_deg = 89
-    na_y = -2
 
     # Compute force for neutral axis location
     Fc, Fr, Asb, sb_cog, x_sb, y_sb = sc.perform_section_analysis(x, y, xr, yr, FCD, FYD, ES, EPS_CU, AS, alpha_deg, na_y, lambda_=LAMBDA)

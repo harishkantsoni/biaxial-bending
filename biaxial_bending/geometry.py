@@ -212,13 +212,13 @@ def get_section_compression_vertices(x, y, na_y, alpha_deg, delta_v):
         # Evaluation of the stress block equation will determine the compression vertices
         sb_eq_eval_at_each_vertex = sb_eq_eval(alpha, na_y, delta_v, x[i], y[i])
 
-        if alpha_deg < 90 or alpha_deg > 270:
+        if alpha_deg <= 90 or alpha_deg > 270:
             if sb_eq_eval_at_each_vertex < 0:
                 # logging.debug('Vertex at ({}, {}) is in compression'.format(x[i], y[i]))
                 x_compr_vertices.append( x[i] )
                 y_compr_vertices.append( y[i] )
 
-        if alpha_deg >= 90 and alpha_deg <= 270:
+        if alpha_deg > 90 and alpha_deg <= 270:
             if sb_eq_eval_at_each_vertex > 0:
                 # logging.debug('Vertex at ({}, {}) is in compression'.format(x[i], y[i]))
                 x_compr_vertices.append( x[i] )

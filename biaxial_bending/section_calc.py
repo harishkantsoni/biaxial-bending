@@ -137,10 +137,11 @@ def compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
         delta_v = delta_p / cos(alpha_deg*pi/180)
 
         # Intersection between stress block inner edge and y-axis (parallel with neutral axis)
-        if alpha_deg == 90:
-            sb_y_intersect = delta_v - na_y     # NOTE I can't really explain why this conditional is necessary, but it fixed the immediate problem
-        else:
-            sb_y_intersect = na_y - delta_v
+
+        # if alpha_deg == 90:
+        #     sb_y_intersect = delta_v - na_y     # NOTE I can't really explain why this conditional is necessary, but it fixed the immediate problem
+        # else:
+        sb_y_intersect = na_y - delta_v
 
         # Intersections between inner edge of stress block (parrallel with neutral axis) and section
         sb_xint, sb_yint = geometry.line_polygon_collisions(alpha_deg, sb_y_intersect, x, y)
@@ -184,7 +185,7 @@ def compute_rebar_stress(eps_r, Es, fyd):
         else:
             # If computed stress exceeds yield, use yielding stress instead
             sigma_r.append(np.sign(si)*fyd)
-
+  
     return sigma_r
 
 
@@ -263,14 +264,14 @@ def compute_moment_contributions(xr, yr, Asb, sb_cog, Fc, Fr):
     else:
         # FIXME Moment lever arm should be distance between stress block centroid and centroid of transformed section __
         # FIXME __ Plastic centroid of transformed section happens to be at (0, 0) in the example in MacGregor's example
-        # Moment contribution from concrete in x-direction
+        # Moment contribution from concrete about x-axis
         Mcx = -Fc * sb_cog[1]
-        # Moment contribution from concrete in y-direction
+        # Moment contribution from concrete about y-axis
         Mcy = -Fc * sb_cog[0]
 
-    # Moment contribution fram rebars about x- and y-axis (according to moment sign convention)
+    # Moment contribution from rebars about x- and y-axis (according to moment sign convention)
     # FIXME Lever arms should be taken wrt. the centroid of the transformed section, i.e. including reinforcement
-    Mrx = [-Fr[i] * yr[i] for i in range(len(xr))]
+    Mrx = [-Fr[i] * yr[i] for i in range(len(yr))]
     Mry = [-Fr[i] * xr[i] for i in range(len(xr))]
 
     return Mcx, Mcy, Mrx, Mry
