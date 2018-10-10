@@ -67,7 +67,7 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.8
     # TODO Find a better way to represent increments for na_y, right now 0 is being computed twice __
     # TODO __ Stop varying na_y if pure tension or compression is found, i.e. if the moment capacities both become 0 __
     # TODO __ See GitHub Issue #2
-    n = 8
+    n = 6
     na_y_list = [-16*4/2*i/n for i in range(n)] + [16*4/2*i/n for i in range(n)]    # FIXME Improve!
     alpha_list = [alpha for alpha in range(0, 360, 5)]
 
@@ -103,7 +103,7 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.8
 if __name__ == '__main__':
 
     # Define materials
-    # NOTE eps_cu = 0.00035 in Eurocode for concrete strengths < C50
+
     EPS_CU = 0.003      # Compressive crushing strain of concrete (strain when cross section capacity is reached)
     FCK =  4    # [ksi]
     GAMMA_C = 1.0
@@ -114,17 +114,36 @@ if __name__ == '__main__':
     FYD = FYK/GAMMA_S
     AS = 0.79  # [in^2]
 
+    # # Compressive crushing strain of concrete (strain when cross section capacity is reached)
+    # EPS_CU = 0.0035       # NOTE eps_cu = 0.00035 in Eurocode for concrete strengths < C50
+    # FCK = 25    # [MPa]
+    # GAMMA_C = 1.0
+    # FCD = FCK/GAMMA_C
+    # ES = 200*10**5  # [MPa]
+    # FYK = 500     # [MPa]
+    # GAMMA_S = 1.0
+    # FYD = FYK/GAMMA_S
+    # AS = pi*25**2/4  # [mm^2]
+
     # Define concrete geometry by polygon vertices
-    x = [-8, 8, 8, -8]
-    y = [8, 8, -8, -8]
+    # x = [-8, 8, 8, -8]
+    # y = [8, 8, -8, -8]
     # x = [8, 8, -8]
     # y = [8, -8, -8]
+    x = [-10, -10, -5, 5,  10, 10,  5,  -5]
+    y = [ -5,  5,  10, 10, 5,  -5, -10, -10]
+    # x = [-254.0, -254.0, -127.0, 127.0, 254.0, 254.0, 127.0, -127.0]
+    # y = [-127.0, 127.0, 254.0, 254.0, 127.0, -127.0, -254.0, -254.0]
 
-    # Define rebar locations
-    xr = [-5.6, 0,   5.6,  5.6,  5.6,  0,   -5.6, -5.6]
-    yr = [ 5.6, 5.6, 5.6,  0,   -5.6, -5.6, -5.6,  0]
+    # Define rebar locations (NOTE Need to be ordered, which should be done automatically)
+    # xr = [-5.6, 0,   5.6,  5.6,  5.6,  0,   -5.6, -5.6]
+    # yr = [ 5.6, 5.6, 5.6,  0,   -5.6, -5.6, -5.6,  0]
     # xr = [5.6,  5.6,  5.6,  1.0,   -3.5, 1.0]
     # yr = [3.5,  -1.0,   -5.6, -5.6, -5.6, -1.0]
+    xr = [-8, -7.8, -4.5,  0,   4.5,  7.8,  8,   7.8,   4.5,   0,    -4.5, -7.8]
+    yr = [ 0,  4.5,  7.8,  8,  7.8,  4.5,   0,   -4.5,  -7.8, -7.8, -7.8, -4.5 ]
+    # xr = [-203.2, -198.12, -114.3, 0.0, 114.3, 198.12, 203.2, 198.12, 114.3, 0.0, -114.3, -198.12]
+    # yr = [0.0, 114.3, 198.12, 203.2, 198.12, 114.3, 0.0, -114.3, -198.12, -198.12, -198.12, -114.3]
 
     # Ø = ['insert rebar sizes']    # IMPLEMENT
     Ø = 1
@@ -138,14 +157,14 @@ if __name__ == '__main__':
     # FIXME ___ Happens just as the section goes from almost pure compression to pure compression. See plot!
 
     # FIXME Compression zone is not computed correctly if na is below section, FIX!!! Same problem as above comment I think!
-    alpha_deg = 90               # [deg]
-    na_y = -2       # [in] Distance from top of section to intersection btw. neutral axis and y-axis
+    alpha_deg = 15               # [deg]
+    na_y = -3       # [in] Distance from top of section to intersection btw. neutral axis and y-axis
     # NOTE na_y Should be infinite if alpha is 90 or 270
 
     P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, FCD, FYD, ES, EPS_CU, AS, lambda_=LAMBDA)
 
     # Plot capacity surface
-    section_plot_uls.plot_capacity_surface(Mx, My, P, plot_type='convex_hull')
+    section_plot_uls.plot_capacity_surface(Mx, My, P, plot_type='scatter')
 
     df = pd.DataFrame({'Mx': Mx, 'My': My, 'P': P, 'na_y': na_y_computed, 'alpha': alpha_computed})
     df.to_csv('df_results.csv', sep='\t')

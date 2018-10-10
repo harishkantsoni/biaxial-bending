@@ -30,18 +30,14 @@ def plot_capacity_surface(X, Y, Z, plot_type='scatter', labels=['Mx', 'My', 'P']
     if plot_type == 'wireframe':
         wire = ax.plot_wireframe(X, Y, Z, linewidth=0.2, antialiased=True)
 
-    if plot_type == 'convex_hull':
-        hull = ConvexHull(np.array(X, Y, Z))
-        plt.plot(points[:, 0], points[:, 1], 'o')
-        for simplex in hull.simplices:
-            plt.plot(points[simplex, 0], points[simplex, 1], 'k-')
-
     else:
         scat = ax.scatter(X, Y, Z, linewidth=0.2, antialiased=True)
 
     ax.set_xlabel(labels[0])
     ax.set_ylabel(labels[1])
     ax.set_zlabel(labels[2])
+
+    plt.title('Capacity surface')
 
     plt.show()
 

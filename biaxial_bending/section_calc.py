@@ -34,11 +34,8 @@ def compute_plastic_centroid(x, y, xr, yr, As, fck, fyk):
 
 def compute_dist_to_na(x, y, xr, yr, alpha_deg, na_y):
 
-    alpha = alpha_deg * pi / 180    # [rad]
-
-    # FIXME dv fails for pure compression
-    # Find 'signed' distances from neutral axis to each vertex
-    dv = []         # Initialize list for holding distances from each vertex to neutral axis
+    # Convert input angle from [deg] to [rad]
+    alpha = alpha_deg * pi / 180   
 
     # Define two known points on line representing neutral axis
     # NOTE Could be done more elegant if the function allowed tan(alpha) and na_y as input
@@ -47,18 +44,13 @@ def compute_dist_to_na(x, y, xr, yr, alpha_deg, na_y):
     na_x1 = 1
     na_y1 = tan(alpha) * na_x1 + na_y
 
-    # Compute distances from neutral axis to each vertex (neg. value => vertex in compr. / pos. value => vertex in tension)
-    # FIXME FIX DISTANCES FOR TENSION/COMPRESSION!!!
-    for i in range(len(x)):
-        dv.append(geometry.point_to_line_dist(
-            x[i], y[i], na_x0, na_y0, na_x1, na_y1))
+    # Compute signed distances from neutral axis to each vertex (neg. value => vertex in compr. / pos. value => vertex in tension)
+    dv = [geometry.point_to_line_dist(x[i], y[i], na_x0, na_y0, na_x1, na_y1) for i in range(len(x))]
 
-    dr = []      # Distances btw. each rebar and neutral axis
-    for i in range(len(xr)):
-        dr.append(geometry.point_to_line_dist(
-            xr[i], yr[i], na_x0, na_y0, na_x1, na_y1))
+    # Compute signed distances from neutral axis to each rebar
+    dr = [geometry.point_to_line_dist(xr[i], yr[i], na_x0, na_y0, na_x1, na_y1) for i in range(len(xr))]
 
-    # Reverse sign of the 'signed' distances if slope of neutral axis becomes negative
+    # Reverse sign of the signed distances if slope of neutral axis becomes negative
     if alpha_deg > 90 and alpha_deg <= 270:
         dv = list(np.negative(dv))
         dr = list(np.negative(dr))
@@ -87,6 +79,8 @@ def compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
         Asb         -   Area of stress block
         sb_cog      -   Cenntroid of stress block represented as tuple, i.e. in the format (x, y)
     '''
+
+    # TODO Split this to multiple functions that are easier to understand and test/debug
 
     # PURE TENSION CASE
     # NOTE Test if this is true! Does not account for gap btw. sb and tension zone
@@ -283,13 +277,12 @@ def compute_C_T_moments(C, T, Mcx, Mcy, Mry, Mrx, Fr, alpha_deg):
 
     The calculation assumes a left-handed sign convention.
     '''
-    # TODO Change loop below to list comprehensions
     My_compr = []
     Mx_compr = []
     My_tension = []
     Mx_tension = []
     for i in range(len(Fr)):
-        if Fr[i] < 0:
+        if Fr[i] <= 0:
             My_compr.append(Mry[i])
             Mx_compr.append(Mrx[i])
         if Fr[i] > 0:

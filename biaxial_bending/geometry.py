@@ -21,17 +21,11 @@ def line_polygon_collisions(angle_deg, y_intersect, x_vertex, y_vertex):
         yint            -   y-coordinates for intersections
 
     '''
-    # NOTE Perhaps 'None' should be returned if no intersections are found
-
-    # Convert angle input to radians
+    # Convert inout angle from [deg] to [rad]
     angle = angle_deg * pi / 180 
 
-    # Define equation for line
-    def line_eq(angle, na_y, x, y): # Note: Angle assumed in radians
-        return tan(angle) * x - y + na_y
-
     # Evaluate the neutral axis linear equation for each vertex
-    vertex_eval = [line_eq(angle, y_intersect, x_vertex[i], y_vertex[i]) for i in range(len(x_vertex))]
+    vertex_eval = [tan(angle)*x_vertex[i]-y_vertex[i]+y_intersect for i in range(len(x_vertex))]
 
     # TODO Code below can be shortened considerably by use of list comprehensions and the all() method
     # If corners are either all positive or all negative, the neutral axis is outside the cross section
