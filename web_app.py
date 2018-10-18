@@ -17,35 +17,145 @@ app.layout = html.Div([
 
 Dash supports [Markdown](http://commonmark.org/help). \
 $$ x^2 $$
-Markdown is a simple way to write and format text.
+Markdown is a simple way $d$ to write and format text.
 It includes a syntax for things like **bold text** and *italics*,
 [links](http://commonmark.org/help), inline `code` snippets, lists,
 quotes, and more.
 ***
 '''),
-    # Div for specifying the cross section vertices
-    html.Label('Define cross section vertices'),
-    dcc.Input(
-        id = 'section-vertices',
-        placeholder = 'Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
-        type = 'text',
-        value = '(-8, 8), (8, 8), (8, -8), (-8, -8)',
-        style = {'width': '45%'}
-        ),
+    html.Div(
+        className='row',
+        children=[
+            html.Div(
+                className='three columns',
+                children=[
+                    html.Div([
+                        # Div for specifying the cross section vertices
+                        # html.Label('Define cross section vertices'),
+                        dcc.Input(
+                            id='section-vertices',
+                            placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
+                            type='text',
+                            value='(-8, 8), (8, 8), (8, -8), (-8, -8)',
+                            style={'width': '100%'},
+                        ),
+                    ],),
+                ], style={'backgroundColor': 'lightgrey', 'width': '30%', 'padding': '10', 'border-radius': '5'},
+            ),
+            html.Div(
+                className='three columns',
+                children=[
+                    html.Div([
+                        # Div for specifying the cross section vertices
+                        dcc.Input(
+                            id='rebar-locations',
+                            placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
+                            # TODO See if there is a type containing only numbers and spceial characters ()[]{}
+                            type='text',
+                            value='(-5.6, 5.6), (0, 5.6), (5.6, 5.6), (5.6, 0), (5.6, -5.6), (0, -5.6), (-5.6, -5.6), (-5.6, 0)',
+                            style={'width': '100%'},
+                        ),
+                    ],),
+                ], style={'backgroundColor': 'lightgrey', 'width': '30%', 'padding': '10'}
+            ),
+            html.Div(
+                className='three columns',
+                children=[
+                    html.Div([
+                        # Div for specifying the cross section vertices
+                        dcc.Input(
+                            id='other2',
+                            placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
+                            # TODO See if there is a type containing only numbers and spceial characters ()[]{}
+                            type='text',
+                            value='(-5.6, 5.6), (0, 5.6), (5.6, 5.6), (5.6, 0), (5.6, -5.6), (0, -5.6), (-5.6, -5.6), (-5.6, 0)',
+                            style={'width': '100%'},
+                        ),
+                    ]),
+                ], style={'backgroundColor': 'lightgrey', 'width': '30%', 'padding': '10'},
+            ),
+        ], style={'backgroundColor': 'grey', 'padding': '30'},
+    ),
+        
 
-    dcc.Input(
-        id = 'rebar-locations',
-        placeholder =  'Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
-        type = 'text',      # TODO See if there is a type containing only numbers and spceial characters ()[]{}
-        value = '(-5.6, 5.6), (0, 5.6), (5.6, 5.6), (5.6, 0), (5.6, -5.6), (0, -5.6), (-5.6, -5.6), (-5.6, 0)',
-        style = {'width': '45%'}
+
+
+    # html.Div([
+    #     # Div for specifying the cross section vertices
+    #     html.Label('Define cross section vertices'),
+    #     dcc.Input(
+    #         id='section-vertices',
+    #         placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
+    #         type='text',
+    #         value='(-8, 8), (8, 8), (8, -8), (-8, -8)',
+    #         style={'width': '45%'}
+    #     ),
+
+    #     dcc.Input(
+    #         id='rebar-locations',
+    #         placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
+    #         # TODO See if there is a type containing only numbers and spceial characters ()[]{}
+    #         type='text',
+    #         value='(-5.6, 5.6), (0, 5.6), (5.6, 5.6), (5.6, 0), (5.6, -5.6), (0, -5.6), (-5.6, -5.6), (-5.6, 0)',
+    #         style={'width': '45%'}
+    #     ),
+
+    # Div for graphs
+    html.Div(
+        className="row",
+        children=[
+            html.Div(
+                className="six columns",
+                children=[
+                    html.Div([
+                        dcc.Graph(
+                            id='section-plot',
+                        ),
+                    ]),
+                ],
+            ),
+            html.Div(
+                className="six columns",
+                children=[
+                    html.Div([
+                        dcc.Graph(
+                            id='capacity-surface',
+                        ),
+                    ]),
+                ],
+            ),
+            html.Div(
+                className="six columns",
+                children=[
+                    html.Div([
+                        dcc.Graph(
+                            id='loads',
+                        ),
+                    ]),
+                ],
+            ),
+        ]
     ),
 
-    # Div for output
-    html.Div([
-        dcc.Graph(id='section-plot'),
-        ], style = {'display': 'block'},
-    ),
+
+    # html.Div([
+    #     # Div for specifying the cross section vertices
+    #     html.Label('Define cross section vertices'),
+    #     dcc.Graph(
+    #         id='section-vertices',
+    #         style={'width': '45%'}
+    #     ),
+
+    #     dcc.Input(
+    #         id='rebar-locations',
+    #         placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
+    #         # TODO See if there is a type containing only numbers and spceial characters ()[]{}
+    #         type='text',
+    #         value='(-5.6, 5.6), (0, 5.6), (5.6, 5.6), (5.6, 0), (5.6, -5.6), (0, -5.6), (-5.6, -5.6), (-5.6, 0)',
+    #         style={'width': '45%'}
+    #     ),
+
+    # ]),
 
 
     # dcc.Dropdown(
@@ -56,7 +166,7 @@ quotes, and more.
     #     ],
     #     value = 'on'
     # ),
-    #
+    
     # # Create Div to place a conditionally hidden element inside
     # html.Div([
     #     # Create element to hide, in this case an Input
@@ -67,7 +177,12 @@ quotes, and more.
     #     value = 'Can you see me?',
     #     )
     # ])
-])
+
+    # ], style={'backgroundColor': 'grey'},),
+
+# ], style={'color': 'black'},),
+
+], style={'margin': 50})
 
 # @app.callback(
 #     Output(component_id='element-to-hide', component_property='style'),
@@ -86,16 +201,15 @@ quotes, and more.
     [Input(component_id='section-vertices', component_property='value'),
     Input(component_id='rebar-locations', component_property='value')]
 )
-def update_output_div(section_vertices, rebar_locations):
+def update_section_plot(section_vertices, rebar_locations):
 
     # Extract only correctly typed points
     x, y, c = regex_point_syntax.get_points(section_vertices)       # Concrete section vertices
-    xr, yr, cr = regex_point_syntax.get_points(rebar_locations)     # Rebar locations
+    xr, yr, _ = regex_point_syntax.get_points(rebar_locations)     # Rebar locations
 
     # TODO Check if polygon defined by concrete vertices intersects itself
     # TODO Check if rebars are all inside polygon, display the 'warning' as text below graph. If calculate button is ___
     # TODO ___ pressed, display 'critical error' to user.
-
 
     # Append first point to create a closed polygon
     if len(c) > 1:
@@ -108,7 +222,7 @@ def update_output_div(section_vertices, rebar_locations):
         y = y,
         fill = 'toself',
         fillcolor = 'rgb(190, 190, 190)',
-        mode = 'lines+markers',
+        mode = 'lines',
         line = dict(
             color = 'rgb(48,48,48)',
         ),
@@ -134,15 +248,26 @@ def update_output_div(section_vertices, rebar_locations):
     return {
         'data': [trace1, trace2],
         'layout': go.Layout(
-            title = 'Cross Section Geometry',
+            # title = 'Cross Section Geometry',
             xaxis = {'title': 'x'},
-            yaxis = {'title': 'y'},
-            # margin = {'l': 40, 'b': 40, 't': 10, 'r': 10},
+            yaxis = dict(title='y', scaleanchor='x', scaleratio=1), # Set aspect equal
+            showlegend=False,
+            margin = {'l': 40, 'b': 40, 't': 40, 'r': 40},
             hovermode = 'closest',
-            width = 500,
-            height = 500
         )
     }
+
+
+# Update capacity surface
+@app.callback(
+    Output(component_id='capacity-surface', component_property='figure'),
+    [Input(component_id='section-vertices', component_property='value'),
+     Input(component_id='rebar-locations', component_property='value')]
+)
+def update_capacity_surface(section_vertices, rebar_locations):
+    # Plot points from analysis
+    # There should be a 'calculate' button
+    pass
 
 
 app.css.append_css({'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'})
