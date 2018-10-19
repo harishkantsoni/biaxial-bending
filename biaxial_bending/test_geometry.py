@@ -25,6 +25,9 @@ class TestGeometry(unittest.TestCase):
         self.assertEqual(x_int, ['8.00', '-8.00'])
         self.assertEqual(y_int, ['2.62', '-6.62'])
 
+    def test_polygon_area():
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()
