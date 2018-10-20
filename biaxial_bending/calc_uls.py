@@ -68,7 +68,8 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.8
     # TODO __ Stop varying na_y if pure tension or compression is found, i.e. if the moment capacities both become 0 __
     # TODO __ See GitHub Issue #2
     n = 6
-    na_y_list = [-16*4/2*i/n for i in range(n)] + [16*4/2*i/n for i in range(n)]    # FIXME Improve!
+    h = max(x) - min(x)
+    na_y_list = list(np.linspace(min(x)-h, 0, 10)) + list(np.linspace(0, max(x)+h, 10))
     alpha_list = [alpha for alpha in range(0, 360, 5)]
 
     P_list = []
@@ -78,7 +79,7 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.8
     alpha_computed = []
     for na_y in na_y_list:
         for alpha_deg in alpha_list:
-            
+        
             # Perform cross section ULS analysis
             Fc, Fr, Asb, sb_cog, _, _ = sc.perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=lambda_)
             
@@ -102,55 +103,68 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.8
 
 if __name__ == '__main__':
 
+    '''
+    1 ksi       ===>  6.895 MPa       (4 ksi          ===>    27.57 MPa)
+    1 kip       ===>  4.448 kN        (400 kip        ===>    1779 kN                 1300 kip    ===>    5783 kN)
+    1 kip-in.   ===>  0.113 kNm       (3500 kip-in.   ===>    395 kNm)
+    '''
+
     # Define materials
 
-    EPS_CU = 0.003      # Compressive crushing strain of concrete (strain when cross section capacity is reached)
-    FCK =  4    # [ksi]
-    GAMMA_C = 1.0
-    FCD = FCK/GAMMA_C
-    ES = 29000  # [ksi]
-    FYK = 60     # [ksi]
-    GAMMA_S = 1.0
-    FYD = FYK/GAMMA_S
-    AS = 0.79  # [in^2]
-
-    # # Compressive crushing strain of concrete (strain when cross section capacity is reached)
-    # EPS_CU = 0.0035       # NOTE eps_cu = 0.00035 in Eurocode for concrete strengths < C50
-    # FCK = 25    # [MPa]
+    # EPS_CU = 0.003      # Compressive crushing strain of concrete (strain when cross section capacity is reached)
+    # FCK =  4    # [ksi]
     # GAMMA_C = 1.0
     # FCD = FCK/GAMMA_C
-    # ES = 200*10**5  # [MPa]
-    # FYK = 500     # [MPa]
+    # ES = 29000  # [ksi]
+    # FYK = 60     # [ksi]
     # GAMMA_S = 1.0
     # FYD = FYK/GAMMA_S
-    # AS = pi*25**2/4  # [mm^2]
+    # AS = 0.79  # [in^2]
+
+    # Compressive crushing strain of concrete (strain when cross section capacity is reached)
+    EPS_CU = 0.0035       # NOTE eps_cu = 0.00035 in Eurocode for concrete strengths < C50
+    FCK = 25    # [MPa]
+    GAMMA_C = 1.0
+    FCD = FCK/GAMMA_C
+    ES = 200*10**5  # [MPa]
+    FYK = 500     # [MPa]
+    GAMMA_S = 1.0
+    FYD = FYK/GAMMA_S
+    AS = pi*25**2/4  # [mm^2]
 
     # Define concrete geometry by polygon vertices
-    # x = [-8, 8, 8, -8]
-    # y = [8, 8, -8, -8]
+    x = [-8, 8, 8, -8]
+    y = [8, 8, -8, -8]
+    x = [i*25.4 for i in x]
+    y = [i*25.4 for i in y]
     # x = [8, 8, -8]
     # y = [8, -8, -8]
-    x = [-10, -10, -5, 5,  10, 10,  5,  -5]
-    y = [ -5,  5,  10, 10, 5,  -5, -10, -10]
-    # x = [-254.0, -254.0, -127.0, 127.0, 254.0, 254.0, 127.0, -127.0]
-    # y = [-127.0, 127.0, 254.0, 254.0, 127.0, -127.0, -254.0, -254.0]
+    # x = [-10, -10, -5, 5,  10, 10,  5,  -5]
+    # y = [ -5,  5,  10, 10, 5,  -5, -10, -10]
+    # x = [-254, -254, -127, 127, 254, 254, 127, -127]
+    # y = [-127, 127, 254, 254, 127, -127, -254, -254]
+    # x = [-203, 203, 203, -203]
+    # y = [203, 203, -203, -203]
 
     # Define rebar locations (NOTE Need to be ordered, which should be done automatically)
-    # xr = [-5.6, 0,   5.6,  5.6,  5.6,  0,   -5.6, -5.6]
-    # yr = [ 5.6, 5.6, 5.6,  0,   -5.6, -5.6, -5.6,  0]
+    xr = [-5.6, 0,   5.6,  5.6,  5.6,  0,   -5.6, -5.6]
+    yr = [ 5.6, 5.6, 5.6,  0,   -5.6, -5.6, -5.6,  0]
+    xr = [i*25.4 for i in xr]
+    yr = [i*25.4 for i in yr]
     # xr = [5.6,  5.6,  5.6,  1.0,   -3.5, 1.0]
     # yr = [3.5,  -1.0,   -5.6, -5.6, -5.6, -1.0]
-    xr = [-8, -7.8, -4.5,  0,   4.5,  7.8,  8,   7.8,   4.5,   0,    -4.5, -7.8]
-    yr = [ 0,  4.5,  7.8,  8,  7.8,  4.5,   0,   -4.5,  -7.8, -7.8, -7.8, -4.5 ]
-    # xr = [-203.2, -198.12, -114.3, 0.0, 114.3, 198.12, 203.2, 198.12, 114.3, 0.0, -114.3, -198.12]
-    # yr = [0.0, 114.3, 198.12, 203.2, 198.12, 114.3, 0.0, -114.3, -198.12, -198.12, -198.12, -114.3]
+    # xr = [-8, -7.8, -4.5,  0,   4.5,  7.8,  8,   7.8,   4.5,   0,    -4.5, -7.8]
+    # yr = [ 0,  4.5,  7.8,  8,  7.8,  4.5,   0,   -4.5,  -7.8, -7.8, -7.8, -4.5 ]
+    # xr = [-203, -198, -114, 0, 114, 198., 203, 198, 114, 0, -114, -198]
+    # yr = [0, 114, 198, 203, 198, 114, 0, -114, -198, -198, -198, -114]
+
 
     # Ø = ['insert rebar sizes']    # IMPLEMENT
-    Ø = 1
+    # Ø = 25
     # As = pi * (Ø / 2)**2   # [in^2]    FIXME This is only the area of a single bar
 
     # NOTE lambda = 0.8 in Eurocode for concrete strengths < C50
-    beta_1 = 0.85      # Factor for compression zone height of Whitney stress block
+    beta_1 = 0.80      # Factor for compression zone height of Whitney stress block
     LAMBDA = beta_1
 
     # FIXME ZeroDivisionError in 'eps_r.append(dr[i] / c * eps_cu)' for (alpha, na_y)=(45, -16) or (0, -8) ___
@@ -182,9 +196,9 @@ if __name__ == '__main__':
     section_plot_uls.plot_ULS_section(x, y, xr, yr, x_sb, y_sb, Asb, sb_cog, Fc, Fr, Mcx, Mcy, Mrx, Mry, Mx, My, alpha_deg, na_y)
 
 
-#####################################################
+####################################################
 # LOGGING STATEMENTS
-#####################################################
+####################################################
 # logging.debug('Cross Section State    ' + cross_section_state)
 # logging.debug('na_xint          ' + str(np.around(na_xint, decimals=2)))
 # logging.debug('na_yint          ' + str(np.around(na_yint, decimals=2)))
