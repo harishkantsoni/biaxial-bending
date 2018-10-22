@@ -1,17 +1,12 @@
+# Built-in modules
 from math import pi, cos, sin, tan, atan, atan2, sqrt, ceil, floor
+
+# Third party modules
 import numpy as np
 import pandas as pd
 import logging
-import matplotlib.pyplot as plt
-import matplotlib.path as mpath
-import matplotlib.lines as mlines
-import matplotlib.patches as mpatches
-import matplotlib.patches as patches
-from matplotlib.collections import PatchCollection
-from matplotlib.patches import Circle, Wedge, Polygon
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-import matplotlib.path as mpltPath
+
+# Project specific modules
 import geometry
 
 '''
@@ -44,3 +39,58 @@ DESCRIPTION
       - 'delta_v' is the vertical distance between the neutral axis and the inner stress block edge
       - 'na_y' is the y-ccordinate of the intersection btw. the y-axis and the neutral axis.
 '''
+
+
+def Itx(xc, x_sb, y_sb, yr, Ec=30*10**6, Es=210*10**6):
+  '''
+  Return moment of inertia about the x-axis of a transformed reinforced concrete cross 
+  section. The section is assumed oriented with x as the horizontal axis.
+
+  Args:
+    xc (float)            : x-coordinate of elastic centroid
+    x_sb (list)           : x-coordiantes of stress block vertices
+    y_sb (list)           : y-coordiantes of stress block vertices
+    yr (list)             : y-coordiantes of rebars
+    Ec (float, optional)  : Young's modulus for concrete (defaults to 30*10**6)
+    Es (float, optioanl)  : Young's modulus for reinforcement (defaults to 210*10**6 )
+
+  Returns:
+    Itx (float) : Moment of inertia about the x-axis
+  '''
+  pass
+
+
+def Ity(yc, x_sb, y_sb, xr, Ec=30*10**6, Es=210*10**6):
+  '''
+  Return moment of inertia about the y-axis of a transformed reinforced concrete cross 
+  section. The section is assumed oriented with y as the vertical axis.
+
+  Args:
+    yc (float)            : y-coordinate of elastic centroid
+    x_sb (list)           : x-coordinates of stress block vertices
+    y_sb (list)           : y-coordiantes of stress block vertices
+    xr (list)             : x-coordinates of rebars
+    Ec (float, optional)  : Young's modulus for concrete (defaults to 30*10**6)
+    Es (float, optioanl)  : Young's modulus for reinforcement (defaults to 210*10**6 )
+
+  Returns:
+    Ity (float) : Moment of inertia about the y-axis
+  '''
+  pass
+
+
+def elastic_centroid():
+  '''
+  Return elastic centroid of reinforced concrete sections.
+
+  Args:
+    par1 (type) : 
+    par2 (type) : 
+
+  Returns:
+    ret1 (type) :
+  
+  TODO
+
+  '''
+  pass
