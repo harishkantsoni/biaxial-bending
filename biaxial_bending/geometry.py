@@ -21,7 +21,7 @@ def line_polygon_collisions(angle_deg, y_intersect, x_vertex, y_vertex):
         yint            -   y-coordinates for intersections
 
     '''
-    # Convert inout angle from [deg] to [rad]
+    # Convert input angle from [deg] to [rad]
     angle = angle_deg * pi / 180 
 
     # Evaluate the neutral axis linear equation for each vertex
@@ -90,14 +90,13 @@ def line_polygon_collisions(angle_deg, y_intersect, x_vertex, y_vertex):
 def polygon_area(x, y, signed=False):
     ''' Return the area of a non-self-intersecting polygon given the coordinates of its vertices'''
     if x is not None and y is not None:
-        # Copy coordinates of first point to last entry to create a closed polygon
+        # Copy coordinates of first point and append to list to create a closed polygon
         x = x + [x[0]]
         y = y + [y[0]]
-        a1 = []
-        a2 = []
-        for i in range(len(x)-1):
-            a1.append( x[i] * y[i+1] )
-            a2.append( y[i] * x[i+1] )
+
+        # Perform shoelace multiplication
+        a1 = [x[i] * y[i+1] for i in range(len(x)-1)]
+        a2 = [y[i] * x[i+1] for i in range(len(y)-1)]
 
         if signed == True:
             A = 1/2 * ( sum(a1) - sum(a2) )
