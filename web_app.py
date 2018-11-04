@@ -9,6 +9,10 @@ from datetime import datetime as dt
 # Imports - project specific files
 import regex_point_syntax
 
+field_color = '#F5F5F5'
+field_pad = 10
+margin = 10
+
 app = dash.Dash('Hello World')
 
 app.layout = html.Div([
@@ -27,7 +31,7 @@ quotes, and more.
         className='row',
         children=[
             html.Div(
-                className='three columns',
+                className='col s2 m2 l2',
                 children=[
                     html.Div([
                         # Div for specifying the cross section vertices
@@ -37,13 +41,14 @@ quotes, and more.
                             placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
                             type='text',
                             value='(-8, 8), (8, 8), (8, -8), (-8, -8)',
-                            style={'width': '100%'},
+                            # style={'width': '100%'},
                         ),
                     ],),
-                ], style={'backgroundColor': 'lightgrey', 'width': '30%', 'padding': '10', 'border-radius': '5'},
+                ], style={'backgroundColor': field_color, 'width': '47%', 'padding': field_pad, 'border-radius': 5,
+                          'margin': margin, 'float': 'left'},
             ),
             html.Div(
-                className='three columns',
+                className='col s2 m2 l2',
                 children=[
                     html.Div([
                         # Div for specifying the cross section vertices
@@ -53,110 +58,54 @@ quotes, and more.
                             # TODO See if there is a type containing only numbers and spceial characters ()[]{}
                             type='text',
                             value='(-5.6, 5.6), (0, 5.6), (5.6, 5.6), (5.6, 0), (5.6, -5.6), (0, -5.6), (-5.6, -5.6), (-5.6, 0)',
-                            style={'width': '100%'},
+                            # style={'width': '100%'},
                         ),
                     ],),
-                ], style={'backgroundColor': 'lightgrey', 'width': '30%', 'padding': '10'}
+                ], style={'backgroundColor': field_color, 'width': '47%', 'padding': field_pad, 'border-radius': 5,
+                          'margin': margin, 'float': 'right'}
             ),
-            html.Div(
-                className='three columns',
-                children=[
-                    html.Div([
-                        # Div for specifying the cross section vertices
-                        dcc.Input(
-                            id='other2',
-                            placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
-                            # TODO See if there is a type containing only numbers and spceial characters ()[]{}
-                            type='text',
-                            value='(-5.6, 5.6), (0, 5.6), (5.6, 5.6), (5.6, 0), (5.6, -5.6), (0, -5.6), (-5.6, -5.6), (-5.6, 0)',
-                            style={'width': '100%'},
-                        ),
-                    ]),
-                ], style={'backgroundColor': 'lightgrey', 'width': '30%', 'padding': '10'},
-            ),
-        ], style={'backgroundColor': 'grey', 'padding': '30'},
+        ], style={'backgroundColor': '#FFFFFF', 'padding': 30, 'border-radius': 5},
     ),
-        
-
-
-
-    # html.Div([
-    #     # Div for specifying the cross section vertices
-    #     html.Label('Define cross section vertices'),
-    #     dcc.Input(
-    #         id='section-vertices',
-    #         placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
-    #         type='text',
-    #         value='(-8, 8), (8, 8), (8, -8), (-8, -8)',
-    #         style={'width': '45%'}
-    #     ),
-
-    #     dcc.Input(
-    #         id='rebar-locations',
-    #         placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
-    #         # TODO See if there is a type containing only numbers and spceial characters ()[]{}
-    #         type='text',
-    #         value='(-5.6, 5.6), (0, 5.6), (5.6, 5.6), (5.6, 0), (5.6, -5.6), (0, -5.6), (-5.6, -5.6), (-5.6, 0)',
-    #         style={'width': '45%'}
-    #     ),
 
     # Div for graphs
     html.Div(
-        className="row",
+        className='row',
         children=[
             html.Div(
-                className="six columns",
+                className='col s3 m3 l3',
                 children=[
                     html.Div([
                         dcc.Graph(
                             id='section-plot',
                         ),
                     ]),
+                ], style={'backgroundColor': field_color, 'width': '30%', 'padding': field_pad, 'border-radius': 5,
+                          'margin': margin},
+            ),
+            html.Div(
+                className='col s3 m3 l3',
+                children=[
+                    html.Div([
+                        # dcc.Graph(
+                        #     id='capacity-surface',
+                        # ),
+                    ], style={'backgroundColor': field_color, 'width': '30%', 'padding': field_pad, 'border-radius': 5,
+                              'margin': margin}),
                 ],
             ),
             html.Div(
-                className="six columns",
+                className='col s3 m3 l3',
                 children=[
                     html.Div([
-                        dcc.Graph(
-                            id='capacity-surface',
-                        ),
-                    ]),
-                ],
-            ),
-            html.Div(
-                className="six columns",
-                children=[
-                    html.Div([
-                        dcc.Graph(
-                            id='loads',
-                        ),
-                    ]),
+                        # dcc.Graph(
+                        #     id='loads',
+                        # ),
+                    ], style={'backgroundColor': field_color, 'width': '30%', 'padding': field_pad, 'border-radius': 5,
+                              'margin': margin}),
                 ],
             ),
         ]
     ),
-
-
-    # html.Div([
-    #     # Div for specifying the cross section vertices
-    #     html.Label('Define cross section vertices'),
-    #     dcc.Graph(
-    #         id='section-vertices',
-    #         style={'width': '45%'}
-    #     ),
-
-    #     dcc.Input(
-    #         id='rebar-locations',
-    #         placeholder='Syntax: (x1, y1), (x2, y2), ..., (xn, yn)',
-    #         # TODO See if there is a type containing only numbers and spceial characters ()[]{}
-    #         type='text',
-    #         value='(-5.6, 5.6), (0, 5.6), (5.6, 5.6), (5.6, 0), (5.6, -5.6), (0, -5.6), (-5.6, -5.6), (-5.6, 0)',
-    #         style={'width': '45%'}
-    #     ),
-
-    # ]),
-
 
     # dcc.Dropdown(
     #     id = 'dropdown-to-hide-element',
@@ -182,7 +131,7 @@ quotes, and more.
 
 # ], style={'color': 'black'},),
 
-], style={'margin': 50})
+], className='container', style={'width': '95%'})
 
 # @app.callback(
 #     Output(component_id='element-to-hide', component_property='style'),
@@ -217,7 +166,7 @@ def update_section_plot(section_vertices, rebar_locations):
         y.append(y[0])
 
     # Create plot
-    trace1 = go.Scatter(
+    concrete = go.Scatter(
         x = x,
         y = y,
         fill = 'toself',
@@ -232,7 +181,7 @@ def update_section_plot(section_vertices, rebar_locations):
             'line': {'width': 0.25, 'color': 'white'},
         },
     )
-    trace2 = go.Scatter(
+    rebars = go.Scatter(
         x = xr,
         y = yr,
         mode = 'markers',
@@ -246,31 +195,41 @@ def update_section_plot(section_vertices, rebar_locations):
     )
 
     return {
-        'data': [trace1, trace2],
+        'data': [concrete, rebars],
         'layout': go.Layout(
             # title = 'Cross Section Geometry',
-            xaxis = {'title': 'x'},
-            yaxis = dict(title='y', scaleanchor='x', scaleratio=1), # Set aspect equal
+            xaxis=dict(title='x', showgrid=False),
+            yaxis=dict(title='y', scaleanchor='x', scaleratio=1,
+                       showgrid=False), 
             showlegend=False,
-            margin = {'l': 40, 'b': 40, 't': 40, 'r': 40},
-            hovermode = 'closest',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            # margin = {'l': 50, 'b': 50, 't': 50, 'r': 50},
+            hovermode='closest',
         )
     }
 
 
-# Update capacity surface
-@app.callback(
-    Output(component_id='capacity-surface', component_property='figure'),
-    [Input(component_id='section-vertices', component_property='value'),
-     Input(component_id='rebar-locations', component_property='value')]
-)
-def update_capacity_surface(section_vertices, rebar_locations):
-    # Plot points from analysis
-    # There should be a 'calculate' button
-    pass
+# # Update capacity surface
+# @app.callback(
+#     Output(component_id='capacity-surface', component_property='figure'),
+#     [Input(component_id='section-vertices', component_property='value'),
+#      Input(component_id='rebar-locations', component_property='value')]
+# )
+# def update_capacity_surface(section_vertices, rebar_locations):
+#     # Plot points from analysis
+#     # There should be a 'calculate' button
+#     pass
 
 
-app.css.append_css({'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'})
+external_css = ['https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css']
+# external_css = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+
+for css in external_css:
+    app.css.append_css({'external_url': css})
+
+for js in external_css:
+    app.scripts.append_script({'external_url': js})
 
 if __name__ == '__main__':
     app.run_server(debug=True)
