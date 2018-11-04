@@ -1,5 +1,6 @@
 # Built-in libraries
 from math import pi, cos, sin, tan, atan, atan2, sqrt, ceil, floor
+import logging
 
 # Third party libraries
 import numpy as np
@@ -8,10 +9,96 @@ import matplotlib.path as mpltPath
 # Project specific modules
 import geometry
 
+
+# Create log file and set default logging statement
+FORMAT = '%(name)-15s %(message)s'
+filename = 'test.log'
+logging.basicConfig(filename=filename, level=logging.INFO,
+                    filemode='w', format=FORMAT)
+
 '''
 This module contains functions that can be used for reinforced concrete section analysis in both SLS and ULS.
 
 '''
+
+
+def Itx(xc, x_sb, y_sb, yr, Ec=30*10**6, Es=210*10**6):
+    '''
+    Return moment of inertia about the x-axis of a transformed reinforced concrete cross 
+    section. The section is assumed oriented with x as the horizontal axis.
+
+    Args:
+      x (float)             : x-coordinate about which to compute moment of inertia (usually elastic centroid)
+      x_sb (list)           : x-coordiantes of stress block vertices
+      y_sb (list)           : y-coordiantes of stress block vertices
+      yr (list)             : y-coordiantes of rebars
+      Ec (float, optional)  : Young's modulus for concrete (defaults to 30*10**6)
+      Es (float, optioanl)  : Young's modulus for reinforcement (defaults to 210*10**6 )
+
+    Returns:
+      Itx (float) : Moment of inertia about the x-axis
+    '''
+    # Number of vertices
+    n = len(x_sb)
+
+    # Create a closed polygon by adding the first point to the end of the coordinate lists
+    x = x_sb + [x_sb[0]]
+    y = y_sb + [y_sb[0]]
+
+    # Compute list of terms for summation
+    Ix_list = [1/12 * (y[i]**2 + y[i]*y[i+1] + y[i+1]**2) *
+               (x[i]*y[i+1] - x[i+1]*y[i]) for i in range(n)]
+
+    # Sum list elements and take absolute value so ordering can be both clockwise and counter-clockwise
+    return abs(sum(Ix_list))
+
+
+def Ity(yc, x_sb, y_sb, xr, Ec=30*10**6, Es=210*10**6):
+    '''
+    Return moment of inertia about the y-axis of a transformed reinforced concrete cross 
+    section. The section is assumed oriented with y as the vertical axis.
+
+    Args:
+      yc (float)            : y-coordinate about which to compute moment of inertia (usually elastic centroid)
+      x_sb (list)           : x-coordinates of stress block vertices
+      y_sb (list)           : y-coordiantes of stress block vertices
+      xr (list)             : x-coordinates of rebars
+      Ec (float, optional)  : Young's modulus for concrete (defaults to 30*10**6)
+      Es (float, optioanl)  : Young's modulus for reinforcement (defaults to 210*10**6 )
+
+    Returns:
+      Ity (float) : Moment of inertia about the y-axis
+    '''
+    # Number of vertices
+    n = len(y_sb)
+
+    # Create a closed polygon by adding the first point to the end of the coordinate lists
+    x = x_sb + [x_sb[0]]
+    y = y_sb + [y_sb[0]]
+
+    # Compute list of terms for summation
+    Iy_list = [1/12 * (x[i]**2 + x[i]*x[i+1] + x[i+1]**2) *
+               (x[i]*y[i+1] - x[i+1]*y[i]) for i in range(n)]
+
+    # Sum list elements and take absolute value so ordering can be both clockwise and counter-clockwise
+    return abs(sum(Iy_list))
+
+
+def elastic_centroid():
+    '''
+    Return elastic centroid of reinforced concrete sections.
+
+    Args:
+      par1 (type) : 
+      par2 (type) : 
+
+    Returns:
+      ret1 (type) :
+    
+    TODO
+
+    '''
+    pass
 
 
 def compute_plastic_centroid(x, y, xr, yr, As, fck, fyk):
@@ -179,7 +266,7 @@ def compute_rebar_stress(eps_r, Es, fyd):
         else:
             # If computed stress exceeds yield, use yielding stress instead
             sigma_r.append(np.sign(si)*fyd)
-  
+
     return sigma_r
 
 
@@ -216,7 +303,7 @@ def compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=0.8):
         else:
             Fi = sigma_r[i] * As
         Fr.append(Fi)
-
+    
     return Fr
 
 
@@ -330,6 +417,9 @@ def compute_C_T_forces_eccentricity(C, T, My_C, Mx_C, Mx_T, My_T):
 
 def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=0.8):
     ''' Perform cross section analysis '''
+
+    logging.info('Started logging of section analysis')
+
     dv, dr = compute_dist_to_na(x, y, xr, yr, alpha_deg, na_y)
     x_sb, y_sb, Asb, sb_cog, c = compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=lambda_)
     eps_r = compute_rebar_strain(dr, c, eps_cu)
@@ -337,6 +427,8 @@ def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, 
     rebars_inside = get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
     Fr = compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=lambda_)
     Fc = compute_concrete_force(fcd, Asb)
+
+    logging.info('Finished logging of section analysis')
 
     return Fc, Fr, Asb, sb_cog, x_sb, y_sb
 
