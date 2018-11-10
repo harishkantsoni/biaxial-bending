@@ -17,110 +17,169 @@ logging.basicConfig(filename=filename, level=logging.INFO,
                     filemode='w', format=FORMAT)
 
 '''
-This module contains functions that can be used for reinforced concrete section analysis in both SLS and ULS.
+This module contains functions that can be used for reinforced concrete section analysis 
+in both SLS and ULS.
 
 '''
 
 
-def Itx(xc, x_sb, y_sb, yr, Ec=30*10**6, Es=210*10**6):
+def Itx(x, y, yr, d, Ec=30*10**6, Es=210*10**6):
     '''
     Return moment of inertia about the x-axis of a transformed reinforced concrete cross 
-    section. The section is assumed oriented with x as the horizontal axis.
+    section. The section can have the shape of any non self intersecting polygon.
 
     Args:
-      x (float)             : x-coordinate about which to compute moment of inertia (usually elastic centroid)
-      x_sb (list)           : x-coordiantes of stress block vertices
-      y_sb (list)           : y-coordiantes of stress block vertices
-      yr (list)             : y-coordiantes of rebars
-      Ec (float, optional)  : Young's modulus for concrete (defaults to 30*10**6)
-      Es (float, optioanl)  : Young's modulus for reinforcement (defaults to 210*10**6 )
+        NOTE Should contain y-coordinate of desired axis of rotation as input
+        x (list)              : x-coordiantes of concrete vertices
+        y (list)              : y-coordiantes of concrete vertices
+        yr (list)             : y-coordiantes of rebars
+        d (list)              : Rebar diameters corresponding to rebar coordinates in list yr
+        Ec (float, optional)  : Young's modulus for concrete (defaults to 30*10**6)
+        Es (float, optioanl)  : Young's modulus for reinforcement (defaults to 210*10**6 )
 
     Returns:
-      Itx (float) : Moment of inertia about the x-axis
+        Itx (float) : Moment of inertia about the x-axis
     '''
+    # CONCRETE SECTION
     # Number of vertices
     n = len(x_sb)
 
     # Create a closed polygon by adding the first point to the end of the coordinate lists
-    x = x_sb + [x_sb[0]]
-    y = y_sb + [y_sb[0]]
+    x = x + [x[0]]
+    y = y + [y[0]]
 
     # Compute list of terms for summation
-    Ix_list = [1/12 * (y[i]**2 + y[i]*y[i+1] + y[i+1]**2) *
+    Icx_list = [1/12 * (y[i]**2 + y[i]*y[i+1] + y[i+1]**2) *
                (x[i]*y[i+1] - x[i+1]*y[i]) for i in range(n)]
 
-    # Sum list elements and take absolute value so ordering can be both clockwise and counter-clockwise
-    return abs(sum(Ix_list))
+    # Sum list elements and use absolute value so order can be clockwise or counter-clockwise
+    Icx = abs(sum(Icx_list))
+
+    # REBARS
+    Isx = [pi/64 * d[i]**4 + pi*d[i]**2/4 * yr[i] for i in range(len(d))]
+
+    return Icx + Isx
 
 
-def Ity(yc, x_sb, y_sb, xr, Ec=30*10**6, Es=210*10**6):
+def Ity(x, y, xr, d, Ec=30*10**6, Es=210*10**6):
     '''
-    Return moment of inertia about the y-axis of a transformed reinforced concrete cross 
-    section. The section is assumed oriented with y as the vertical axis.
+    Return moment of inertia about the y-axis of a reinforced concrete cross 
+    section. The section can have the shape of any non self intersecting polygon.
 
     Args:
-      yc (float)            : y-coordinate about which to compute moment of inertia (usually elastic centroid)
-      x_sb (list)           : x-coordinates of stress block vertices
-      y_sb (list)           : y-coordiantes of stress block vertices
+        NOTE Should contain x-coordinate of desired axis of rotation as input
+      x (list)              : x-coordinates of concrete vertices
+      y (list)              : y-coordiantes of concrete vertices
       xr (list)             : x-coordinates of rebars
+      d (list)              : Rebar diameters corresponding to rebar coordinates in list xr
       Ec (float, optional)  : Young's modulus for concrete (defaults to 30*10**6)
       Es (float, optioanl)  : Young's modulus for reinforcement (defaults to 210*10**6 )
 
     Returns:
       Ity (float) : Moment of inertia about the y-axis
     '''
+    # CONCRETE SECTION
     # Number of vertices
     n = len(y_sb)
 
     # Create a closed polygon by adding the first point to the end of the coordinate lists
-    x = x_sb + [x_sb[0]]
-    y = y_sb + [y_sb[0]]
+    x = x + [x[0]]
+    y = y + [y[0]]
 
     # Compute list of terms for summation
-    Iy_list = [1/12 * (x[i]**2 + x[i]*x[i+1] + x[i+1]**2) *
+    Icy_list = [1/12 * (x[i]**2 + x[i]*x[i+1] + x[i+1]**2) *
                (x[i]*y[i+1] - x[i+1]*y[i]) for i in range(n)]
 
     # Sum list elements and take absolute value so ordering can be both clockwise and counter-clockwise
-    return abs(sum(Iy_list))
+    Icy = abs(sum(Icy_list))
+
+    # REBARS
+    Isy = [pi/64 * d[i]**4 + pi*d[i]**2/4 * xr[i] for i in range(len(d))]
+    
+    return Icy + Isy
 
 
-def elastic_centroid():
+def elastic_centroid(x, y, xs, ys, dia, Ec=30*10**6, Es=210*10**6):
     '''
-    Return elastic centroid of reinforced concrete sections.
+    Return elastic centroid of a transformed reinforced concrete sections. 
+    Rebars located outside of the concrete defined by x and y is assumed to be 
+    surrounded by ineffective/crakced concrete. 
 
     Args:
       par1 (type) : 
-      par2 (type) : 
+      dia (list)      : Rebars diameters 
 
     Returns:
       ret1 (type) :
-    
-    TODO
-
     '''
-    pass
+
+    # Stiffness ratio
+    n = Es / Ec     
+
+    # Number of rebars
+    nb = len(dia)
+
+    # Rebars that are surrounded by ineffective/crakced concrete will have a 
+    # transformed stiffness of 'n', while rebars in the compression zone
+    # has 'n-1', since the rebars have displaced concrete that would have
+    # had stiffness of 'Ec'.
+
+    # Evaluate if rebars are inside or outside stress block (returns list with 'True' or 'False')
+    rebar_eval = rebars_in_stress_block(x, y, xs, ys)
+
+    # Extract rebars in compression 
+    dia_comp = [dia[i] for i in range(nb) if rebar_eval[i]]
+    xs_comp = [xs[i] for i in range(nb) if rebar_eval[i]]
+    ys_comp = [ys[i] for i in range(nb) if rebar_eval[i]]
+
+    # Extract rebars in tension
+    dia_tens = [dia[i] for i in range(nb) if not rebar_eval[i]]
+    xs_tens = [xs[i] for i in range(nb) if not rebar_eval[i]]
+    ys_tens = [ys[i] for i in range(nb) if not rebar_eval[i]]
+    
+    # Compute centroid and area of concrete polygon
+    xc, yc, Ac = geometry.polygon_centroid(x, y, return_area=True)
+
+    # Compute total transformced area of section
+    A_comp = sum([n * pi*d**2/4 for d in dia_tens])
+    A_tens = sum([(n-1) * pi*d**2/4 for d in dia_comp])
+    A = Ac + A_comp + A_tens
+    
+    # Compute total 'moment area', i.e. area times moment arm
+    Acx = Ac * xc                                                                        
+    Asx_comp = sum([(n-1) * pi*dia_comp[i]**2/4 * xs_comp[i] for i in range(len(dia_comp))])  
+    Asx_tens = sum([n * pi*dia_tens[i]**2/4 * xs_tens[i] for i in range(len(dia_tens))])
+
+    Acy = Ac * yc
+    Asy_comp = sum([(n-1) * pi*dia_comp[i]**2/4 * ys_comp[i] for i in range(len(dia_comp))])  
+    Asy_tens = sum([n * pi*dia_tens[i]**2/4 * ys_tens[i] for i in range(len(dia_tens))])
+
+    # Compute x- and y-coordinate of elastic centroid for transformed section
+    xel = (Acx + Asx_comp + Asx_tens) / A
+    yel = (Acy + Asy_comp + Asy_tens) / A
+
+    return xel, yel
 
 
 def compute_plastic_centroid(x, y, xr, yr, As, fck, fyk):
-
+    ''' Return plastic centroid of a reinforced concrete section. '''
     Ac = geometry.polygon_area(x, y)
-    eta = 0.85
+    eta = 0.85                          # TODO Look into whether eta should be an input arg
     F = sum([As[i]*fyk for i in As]) + eta*(Ac - sum(As))*fck
 
     # TODO Find correct and general arm for concrete force (polygon section)
-    F_times_dx = sum([As[i]*fyk*xr[i]
-                      for i in range(len(xr))]) + eta*(Ac - sum(As))*fck*500/2
-    F_times_dy = sum([As[i]*fyk*yr[i]
-                      for i in range(len(yr))]) + eta*(Ac - sum(As))*fck*375/2
+    F_dx = sum([As[i]*fyk*xr[i] for i in range(len(xr))]) + eta*(Ac - sum(As))*fck*500/2
+    F_dy = sum([As[i]*fyk*yr[i] for i in range(len(yr))]) + eta*(Ac - sum(As))*fck*375/2
 
-    xpl = F_times_dx/F
-    ypl = F_times_dy/F
+    xpl = F_dx/F
+    ypl = F_dy/F
 
     return xpl, ypl
 
 
 def compute_dist_to_na(x, y, xr, yr, alpha_deg, na_y):
-
+    ''' Return distances from neutral axis to all concrete section vertices
+        and rebars. '''
     # Convert input angle from [deg] to [rad]
     alpha = alpha_deg * pi / 180   
 
@@ -150,7 +209,7 @@ def compute_dist_to_na(x, y, xr, yr, alpha_deg, na_y):
 
 def compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
     '''
-    Returns stress block geometry
+    Returns stress block geometry.
 
     INPUT
         x           -   List of x-coordinates of concrete section vertices
@@ -248,12 +307,12 @@ def compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
 
 
 def compute_rebar_strain(dist_to_na, c, eps_cu):
-    '''    Return strain in each rebar as a list    '''
+    ''' Return strain in each rebar as a list '''
     return [ri / abs(c) * eps_cu for ri in dist_to_na]
 
 
 def compute_rebar_stress(eps_r, Es, fyd):
-    '''    Return stress in each rebar as a list    '''
+    ''' Return stress in each rebar as a list '''
     # NOTE Could be expanded to handle both 'ULS' and 'SLS'
     # NOTE! CAN NOT HANDLE SLS AT THE MOMENT!
     sigma_r = []
@@ -270,14 +329,20 @@ def compute_rebar_stress(eps_r, Es, fyd):
     return sigma_r
 
 
-def get_rebars_in_stress_block(xr, yr, x_sb, y_sb):
-    '''    Returns a list with entry 'True' for rebars located inside the stress block, 'False' otherwise    '''
-    # Arrange rebar coordinates
-    rebar_coords = [[xr[i], yr[i]] for i in range(len(xr))]
+def rebars_in_stress_block(x_sb, y_sb, xr, yr):
+    ''' Returns a list with entry 'True' for rebars located inside the stress block, 'False' otherwise '''
 
-    # Arrange stress block coordinates
+    if xr and yr:
+        # Arrange rebar coordinates
+        rebar_coords = [[xr[i], yr[i]] for i in range(len(xr))]
+    else:
+        raise ValueError('No rebars in section.')
+
+    # Compute area of stress block
     Asb = geometry.polygon_area(x_sb, y_sb)
+
     if Asb != 0:
+        # Arrange stress block coordinates
         sb_poly = [[x_sb[i], y_sb[i]] for i in range(len(x_sb))]
 
         # Check if rebars are inside the stress block
@@ -292,8 +357,15 @@ def get_rebars_in_stress_block(xr, yr, x_sb, y_sb):
     # logging.debug('bar {} is inside stress block'.format(i+1))  # TODO Create logging statement
 
 
-def compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=0.8):
-    ''' Return rebar forces as list'''
+def compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=0.80):
+    ''' Return rebar forces as list.
+    
+     Args:
+      par1 (type) : 
+
+    Returns:
+      Fr (list)     : List of rebar forces
+    '''
     Fr = []    # Forces in each rebar
 
     for i in range(len(xr)):
@@ -307,14 +379,14 @@ def compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=0.8):
     return Fr
 
 
-def compute_concrete_force(fcd, Asb):
+def compute_concrete_force(fcd, Asb, lambda_=0.80):
     ''' Return compression force in the concrete. '''
-    Fc = -0.85 * fcd * Asb
+    Fc = -lambda_ * fcd * Asb          
     return Fc
 
 
 def compute_moment_vector_angle(Mx, My):
-    '''    Returns the angle (in degrees) of the moment vector with respect to the x-axis    '''
+    '''    Return the angle (in degrees) of the moment vector with respect to the x-axis    '''
     if Mx == 0:
         if My == 0:
             phi = None
@@ -327,7 +399,7 @@ def compute_moment_vector_angle(Mx, My):
 
 
 def compute_C_T_forces(Fc, Fr):
-    '''    Returns Compression (C) and Tension (T) forces of the section    '''
+    '''    Return Compression (C) and Tension (T) forces of the section    '''
     Fr_compr = [p for p in Fr if p <= 0]
     Fr_tension = [p for p in Fr if p > 0]
     C = sum(Fr_compr) + Fc
@@ -415,7 +487,7 @@ def compute_C_T_forces_eccentricity(C, T, My_C, Mx_C, Mx_T, My_T):
     return ex_C, ey_C, ex_T, ey_T
 
 
-def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=0.8):
+def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=0.80):
     ''' Perform cross section analysis '''
 
     logging.info('Started logging of section analysis')
@@ -424,7 +496,7 @@ def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, 
     x_sb, y_sb, Asb, sb_cog, c = compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=lambda_)
     eps_r = compute_rebar_strain(dr, c, eps_cu)
     sigma_r = compute_rebar_stress(eps_r, Es, fyd)
-    rebars_inside = get_rebars_in_stress_block(xr, yr, x_sb, y_sb)
+    rebars_inside = rebars_in_stress_block(x_sb, y_sb, xr, yr)
     Fr = compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=lambda_)
     Fc = compute_concrete_force(fcd, Asb)
 
@@ -435,12 +507,13 @@ def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, 
 
 if __name__ == '__main__':
 
-    x = [-8, 8, 8, -8]
-    y = [8, 8, -8, -8]
-    alpha_deg = 30
-    na_y = -2
-    # Distance from neutral axis to concrete section vertices
-    dv = [-12.66, -4.66, 9.20, 1.20]
-    # Distance from neutral axis to rebars
-    dr = [-9.38, -6.58, -3.78, 1.07, 5.92, 3.12, 0.32, -4.53]
-    x_sb, y_sb, _, _, _ = compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.85)
+    # x = [-8, 8, 8, -8]
+    # y = [8, 8, -8, -8]
+    # alpha_deg = 30
+    # na_y = -2
+    # # Distance from neutral axis to concrete section vertices
+    # dv = [-12.66, -4.66, 9.20, 1.20]
+    # # Distance from neutral axis to rebars
+    # dr = [-9.38, -6.58, -3.78, 1.07, 5.92, 3.12, 0.32, -4.53]
+    # x_sb, y_sb, _, _, _ = compute_stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.85)
+    pass 
