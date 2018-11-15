@@ -101,6 +101,12 @@ def Ity(xc, x, y, xr, yr, d, Ec=EC, Es=ES):
     Returns:
       Ity (float) : Moment of inertia about the y-axis
     '''
+    # THEORY
+    # The computation has to be generalized for any non self-intersecting polygon. The formula
+    # can be found e.g. at https://en.wikipedia.org/wiki/Second_moment_of_area
+
+    n = Es / Ec     # Stiffness ratio
+
     # CONCRETE SECTION
     # Number of vertices
     nv = len(y)
@@ -195,20 +201,52 @@ def elastic_centroid(x, y, xr, yr, dia, Ec=EC, Es=ES):
     return xel, yel
 
 
-def strain_field_eval(x, y, P, Mx, My, Ec=EC, Es=ES):
+def transformed_axial_stiffness(x, y, xr, yr, dia, P, Ec=EC, Es=ES):
+    ''' Return axial stiffness EA of transformed concrete section. '''
+    
+    # Stiffness ratio
+    n = Es / Ec
+    
+    # Area of rebars
+    As = sum([pi * d**2 / 4 for d in dia])
+
+    if P <= 0:
+        # Axial force is compressive
+
+        # Compute area of section
+        A = geometry.polygon_area(x, y)
+
+        # Area of concrete
+        Ac = A - As
+
+        # Transformed stiffness weighed by actual area (not transformed area in this case)
+        Et = ( Ec * Ac + (n - 1) * Es * As ) / A
+
+        # Transformed arae
+        At = Ac + (n - 1) * As
+
+        return Et * At
+
+    else:
+        # Axial force is tensile
+        
+        # Stiffness and area contribution comes from rebars only
+        E = Es
+        
+        return E * As
+
+
+def strain_field_eval(x, y, P, Mx, My, EA, Itx, Ity):
     '''
     Return the evaluation of the strain field equation given for external loads 
     P, Mx and My in point (x, y).
+
+    Assumptions:
+        Plane sections remain plane, i.e. strain vary linearly over the cross section.
     '''
-    # Compute moments of inertia 
-
-
-    # Compute area
-
-    # NOTE It and A could also be passed in as arguments to avoid calculating them many times.
 
     # Axial strain
-    eps_P = P/(E*A)     # NOTE <--- Which E and A to use? How to transform?
+    eps_P = P/EA     
 
     # Curvature from bending about x- and y-axis
     kappa_x = Mx/(E*Itx)
