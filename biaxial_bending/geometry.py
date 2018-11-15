@@ -125,7 +125,7 @@ def point_to_line_dist(x, y, x0, y0, x1, y1, signed=True):
 
 
 # Location of polygon centroid
-def polygon_centroid(x, y):
+def polygon_centroid(x, y, return_area=False):
     ''' Compute the centroid of a non-self-intersecting polygon given the coordinates of its vertices (corners)'''
     # Compute signed area of polygon
     A = polygon_area(x, y, signed=True)
@@ -150,6 +150,10 @@ def polygon_centroid(x, y):
 
         Cx = sum(cx) / (6*A)
         Cy = sum(cy) / (6*A)
+
+        if return_area:
+            return Cx, Cy, A
+            
         return Cx, Cy
 
 

@@ -8,6 +8,7 @@ import logging
 
 # Project specific modules
 import geometry
+import section_calc as sc
 
 '''
 DESCRIPTION
@@ -41,56 +42,94 @@ DESCRIPTION
 '''
 
 
-def Itx(xc, x_sb, y_sb, yr, Ec=30*10**6, Es=210*10**6):
-  '''
-  Return moment of inertia about the x-axis of a transformed reinforced concrete cross 
-  section. The section is assumed oriented with x as the horizontal axis.
+# Pseudo code for calculating neutral axis by iteration
 
-  Args:
-    xc (float)            : x-coordinate of elastic centroid
-    x_sb (list)           : x-coordiantes of stress block vertices
-    y_sb (list)           : y-coordiantes of stress block vertices
-    yr (list)             : y-coordiantes of rebars
-    Ec (float, optional)  : Young's modulus for concrete (defaults to 30*10**6)
-    Es (float, optioanl)  : Young's modulus for reinforcement (defaults to 210*10**6 )
+def find_na(x, y, xr, yr, N, Mx, My, Ec=30*10**6, Es=210*10**6):
+        """
+        Return neutral axis of a reinforced concrete section given a loadcase (N, Mx, My).
 
-  Returns:
-    Itx (float) : Moment of inertia about the x-axis
-  '''
-  pass
+        The section calculation is purely elastic and thus assumes a linear relationship between
+        stress and strain.
+
+        The neutral axis is found by fixed point iteration.
+        x_(n+1) = f(x_n)   ,   n = 0,1,2 ...
+        I.e, the computed x in iteration i is used as guess for iteration i+1 (if x was unsatisfactory)
+        Neutral axis has reference point at specified point (x, y).
+
+        Args:
+            x (float)         : x-coordinate of cross section vertices
+            y (float)         : y-coordinate of cross section vertices
+            xr (float)        : x-coordinate of rebars
+            yr (float)        : y-coordinate of rebars
+            N (float)         : Axial force (negative in compression)
+            Mx (float)        : Moment about x-axis
+            My (float)        : Moment about y-axis
+
+        Returns:
+            yn (float)        : y-coorindate for intersetion between neutral axis and y-axis
+            angle (float)     : Angle in degress between neutral axis and x-axis
+        """
+
+        # Setup
+        itr = 1
+        max_itr = 1000
+        tol = 0.001
+
+        # Stiffness ratio
+        n = Es / Ec
+        
+        # Starting guess for y-coordinate of neutral axis intersection with y-axis
+        y_guess = 0
+
+        # Starting guess for angle between neutral axis and x-axis
+        # Angl of resulting moment vector with x-axis coincides with neutral axis for
+        # double symmetric sections. Even though they generally not coincide, it might be
+        # a good staring guess 
+        angle_guess = atan(My/Mx * 180/pi)  # [deg]
+
+        # error = 0
 
 
-def Ity(yc, x_sb, y_sb, xr, Ec=30*10**6, Es=210*10**6):
-  '''
-  Return moment of inertia about the y-axis of a transformed reinforced concrete cross 
-  section. The section is assumed oriented with y as the vertical axis.
+        # Perform iteration of angle between neutral axis and x-axis
+        while angle_error > tol and itr < max_itr:
 
-  Args:
-    yc (float)            : y-coordinate of elastic centroid
-    x_sb (list)           : x-coordinates of stress block vertices
-    y_sb (list)           : y-coordiantes of stress block vertices
-    xr (list)             : x-coordinates of rebars
-    Ec (float, optional)  : Young's modulus for concrete (defaults to 30*10**6)
-    Es (float, optioanl)  : Young's modulus for reinforcement (defaults to 210*10**6 )
+            while yn_error > tol and itr < max_itr:
+                # Compute value for max compression strain within the sction strain field
+                ''' eps_c_guess =  sc.strain_field_eval(...) '''     
 
-  Returns:
-    Ity (float) : Moment of inertia about the y-axis
-  '''
-  pass
+                # Compute distance from neutral axis to concrete vertices and rebars
+                dv, dr = sc.compute_dist_to_na(x, y, xr, yr, angle_guess, yn_guess)
+
+                # Compute geometry of the concrete stress block
+                x_sb, y_sb, Asb, sb_cog, c = sc.stress_block_geometry(x, y, dv, dr, alpha_deg, yn)
+
+                # Compute rebar stress
+
+                # Compute transformed area of section
+                ''' At = Ac + alpha * As    TODO Write function to calc this'''
+
+                # Find elastic centroid based on guesses location 
+                ''' Call to function calculating elastic centroid   TODO Write function to do this'''
+
+                # Compute transformed moment of inertia
+                ''' Itx = sc.Itx(x, y, yr) '''
+                ''' Ity = sc.Itx(x, y, xr) '''
+
+                # Convert moment to centroid of the transformed section
+                ''' Mx_guess = Mx + N * arm * 10**(-3) '''
+                ''' My_guess = My + N * arm * 10**(-3) '''
+
+                # 
+
+                # difference btw guessed and computed neutral axis
+                yn_error = abs(y_guess - yn)
+
+            if error > tol:
+                itr += 1
+
+        return x, y, At, It, Mt
 
 
-def elastic_centroid():
-  '''
-  Return elastic centroid of reinforced concrete sections.
 
-  Args:
-    par1 (type) : 
-    par2 (type) : 
-
-  Returns:
-    ret1 (type) :
-  
-  TODO
-
-  '''
-  pass
+if __name__ == '__main__':
+    pass

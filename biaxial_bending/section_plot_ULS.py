@@ -24,6 +24,12 @@ def plot_capacity_surface(X, Y, Z, plot_type='scatter', labels=['Mx', 'My', 'P']
     fig_surface = plt.figure()
     ax = Axes3D(fig_surface)
 
+
+    X = [i/10**6 for i in X]
+    Y = [i/10**6 for i in Y]
+    Z = [i/10**3 for i in Z]
+
+
     if plot_type == 'trisurf':
         surf = ax.plot_trisurf(X, Y, Z, linewidth=0.2, antialiased=True)
 
