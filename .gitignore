@@ -4,7 +4,12 @@
 *.xlsx
 *.json
 *.pdf
+*.log
+*.pyc
 
+biaxial_bending/__pycache__/
+biaxial_bending/biaxial_bending/__pycache__/
+biaxial_bending/biaxial_bending/.vscode/
 Other/dv_test.py
 biaxial_bending/test.log
 biaxial_bending/__pycache__/geometry.cpython-36.pyc
