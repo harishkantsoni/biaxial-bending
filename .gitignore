@@ -4,6 +4,8 @@
 *.xlsx
 *.json
 *.pdf
+*.log
+*.pyc
 
 Other/dv_test.py
 biaxial_bending/test.log
