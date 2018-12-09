@@ -1,13 +1,15 @@
+# Files
 *.log
-*.cpython-36.pyc
 *.csv
 *.xlsx
+*.xlsm
 *.json
 *.pdf
 *.log
 *.pyc
+*.docx
 
-biaxial_bending/__pycache__/
-biaxial_bending/biaxial_bending/__pycache__/
-biaxial_bending/biaxial_bending/.vscode/
-Other/dv_test.py
+# Folders
+__pycache__/
+.vscode/
+

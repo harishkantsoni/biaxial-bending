@@ -5,6 +5,7 @@ import logging
 # Third party packages
 import numpy as np
 import pandas as pd
+from scipy.spatial import ConvexHull
 import matplotlib.pyplot as plt
 import matplotlib.path as mpath
 import matplotlib.lines as mlines
@@ -16,17 +17,18 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 # Project specific packages
-import geometry
 import section_calc as sc
-import section_plot_uls 
+import section_plot_uls
+from geometry import point_to_point_dist_3d
+from geometry import line_hull_intersection
 
 '''
 DESCRIPTION
 
     Sign convention
-      Positive x- and y-axis points to the right and upwards, respectively. Positive moments Mx cause compression at 
-      positive y-coordinates, while positive moments My cause compression at positve x-coordinates.  
-      
+      Positive x- and y-axis points to the right and upwards, respectively. Positive moments Mx cause compression at
+      positive y-coordinates, while positive moments My cause compression at positve x-coordinates.
+
       Tension                     :   Positive
       Compression                 :   Negative
 
@@ -70,10 +72,10 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.8
     # TODO Find a better way to represent increments for na_y, right now 0 is being computed twice __
     # TODO __ Stop varying na_y if pure tension or compression is found, i.e. if the moment capacities both become 0 __
     # TODO __ See GitHub Issue #2
-    n = 6
+    vs = vertical_step
     h = max(x) - min(x)
-    na_y_list = list(np.linspace(min(x)-h, 0, 10)) + list(np.linspace(0, max(x)+h, 10))
-    alpha_list = [alpha for alpha in range(0, 360, 5)]
+    na_y_list = list(np.linspace((min(x)-h/3), 0, vs)) + list(np.linspace(0, (max(x)+h/3), vs))
+    alpha_list = [alpha for alpha in range(0, 360, rotation_step)]
 
     P_list = []
     Mx_list = []
@@ -82,10 +84,10 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.8
     alpha_computed = []
     for na_y in na_y_list:
         for alpha_deg in alpha_list:
-        
+
             # Perform cross section ULS analysis
             Fc, Fr, Asb, sb_cog, _, _ = sc.perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, na_y, lambda_=lambda_)
-            
+
             # Compute individual moments generated in the section
             Mcx, Mcy, Mrx, Mry = sc.compute_moment_contributions(xr, yr, Asb, sb_cog, Fc, Fr)
 
@@ -103,6 +105,61 @@ def compute_capacity_surface(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, lambda_=0.8
 
     return P_list, Mx_list, My_list, na_y_computed, alpha_computed
 
+
+from scipy.optimize import linprog
+
+
+def in_point_cloud(points, x):
+    n_points = len(points)
+    n_dim = len(x)
+    c = np.zeros(n_points)
+    A = np.r_[points.T, np.ones((1, n_points))]
+    b = np.r_[x, np.ones(1)]
+    lp = linprog(c, A_eq=A, b_eq=b)
+    return lp.success
+
+
+def utilization_ratio(Ped, Mxed, Myed, P_capsurf, Mx_capsurf, My_capsurf):
+    '''
+    Return the utilization ratio as the ratio between the distance from the load
+    combination point to Origo and the distance from Origo to capacity surface in
+    dirrection given by the point.
+
+    Args:
+    all inputs are lists...
+
+    Returns
+        ur as list
+    '''
+
+    # Compute convex hull of the capacity surface point cloud
+    cap_surf = np.transpose(np.array([P_capsurf, Mx_capsurf, My_capsurf]))
+    convex_hull = ConvexHull(cap_surf)
+
+    # Compute distance from Origo to all load combination points
+    comb_array = np.transpose(np.array([Ped, Mxed, Myed]))
+    lc_dist = [point_to_point_dist_3d([0, 0, 0], lc) for lc in comb_array]
+
+    # Compute distance from Origo to all capacity surface points in line with load combinations
+    # cap_intersections = [line_hull_intersection(lc, convex_hull) for lc in comb_array]
+    cap_intersections = [line_hull_intersection(lc, convex_hull) for lc in comb_array]
+    cap_dist = [point_to_point_dist_3d([0, 0, 0], cap) for cap in cap_intersections]
+
+    # A for loop is made here in favor of a list comprehension in order to catch
+    # the case where all loads in combination is 0. In that case, the Vector
+    # has no direction.
+    # Compute utilization ratios for all load combinations
+    ur = []
+    for i in range(len(comb_array)):
+        # if not np.all(np.nonzero(comb_array[i])):
+        if np.all(comb_array[i] == 0):
+            # All external loads are 0, i.e. P=0, Mx=0 and My=0
+            ur.append(0.00)
+        else:
+            # Some loads are nonzero
+            ur.append(lc_dist[i] / cap_dist[i])
+
+    return ur
 
 if __name__ == '__main__':
 
@@ -125,41 +182,67 @@ if __name__ == '__main__':
     # AS = 0.79  # [in^2]
 
     # Compressive crushing strain of concrete (strain when cross section capacity is reached)
-    EPS_CU = 0.0035       # NOTE eps_cu = 0.00035 in Eurocode for concrete strengths < C50
+    EPS_CU = 0.0035       # NOTE eps_cu = 0.0035 in Eurocode for concrete strengths < C50
     FCK = 25    # [MPa]
-    GAMMA_C = 1.0
+    GAMMA_C = 1.5
     FCD = FCK/GAMMA_C
-    ES = 200*10**5  # [MPa]
+    ES = 200*10**3  # [MPa]
     FYK = 500     # [MPa]
-    GAMMA_S = 1.0
+    GAMMA_S = 1.15
     FYD = FYK/GAMMA_S
     AS = pi*25**2/4  # [mm^2]
 
     # Define concrete geometry by polygon vertices
     x = [-8, 8, 8, -8]
     y = [8, 8, -8, -8]
+    # Convert from [in] to [m]
     x = [i*25.4 for i in x]
     y = [i*25.4 for i in y]
+
+    # Cross seciton shaped like a cross
+    x = [-400, 400, 400, 100, 100, 400, 400, -400, -400, -100, -100, -400]
+    y = [400, 400, 200, 200, -200, -200, -400, -400, -200, -200, 200, 200]
+
+    # # T-beam
+    # x = [-150,-400,-400,400,400,150,150,-150]
+    # y = [200,200,400,400,200,200,-150,-150]
+    #
+    # Triangle shape
+    x = [0,-200,200]
+    y = [200,-200,-200]
+
     # x = [8, 8, -8]
     # y = [8, -8, -8]
     # x = [-10, -10, -5, 5,  10, 10,  5,  -5]
     # y = [ -5,  5,  10, 10, 5,  -5, -10, -10]
     # x = [-254, -254, -127, 127, 254, 254, 127, -127]
     # y = [-127, 127, 254, 254, 127, -127, -254, -254]
-    # x = [-203, 203, 203, -203]
-    # y = [203, 203, -203, -203]
+    # x = [-200, 200, 200, -200]
+    # y = [200, 200, -200, -200]
 
     # Define rebar locations (NOTE Need to be ordered, which should be done automatically)
     xr = [-5.6, 0,   5.6,  5.6,  5.6,  0,   -5.6, -5.6]
     yr = [ 5.6, 5.6, 5.6,  0,   -5.6, -5.6, -5.6,  0]
+    # Convert from [in] to [m]
     xr = [i*25.4 for i in xr]
     yr = [i*25.4 for i in yr]
+
+    # Cross shaped section
+    xr = [-340, 0,  340, 0, -340, 340, 0]
+    yr = [340, 340, 340, 0, -340,-340,-340]
+
+    # # T-beam
+    # xr=[-350,-350,-175,175,350,0,350,-100,0,100]
+    # yr=[350,250,350,350,350,-100,250,-100,350,-100]
+    #
+    # Triangle shape
+    xr = [-130,130,65,-65,0,0]
+    yr = [-160,-160,0,0,140,-160]
+
     # xr = [5.6,  5.6,  5.6,  1.0,   -3.5, 1.0]
     # yr = [3.5,  -1.0,   -5.6, -5.6, -5.6, -1.0]
     # xr = [-8, -7.8, -4.5,  0,   4.5,  7.8,  8,   7.8,   4.5,   0,    -4.5, -7.8]
     # yr = [ 0,  4.5,  7.8,  8,  7.8,  4.5,   0,   -4.5,  -7.8, -7.8, -7.8, -4.5 ]
-    # xr = [-203, -198, -114, 0, 114, 198., 203, 198, 114, 0, -114, -198]
-    # yr = [0, 114, 198, 203, 198, 114, 0, -114, -198, -198, -198, -114]
 
 
     # Ø = ['insert rebar sizes']    # IMPLEMENT
@@ -175,28 +258,77 @@ if __name__ == '__main__':
 
     # FIXME Compression zone is not computed correctly if na is below section, FIX!!! Same problem as above comment I think!
     alpha_deg = 15               # [deg]
-    na_y = -3       # [in] Distance from top of section to intersection btw. neutral axis and y-axis
+    na_y = -50       # Distance from x-axis to intersection btw. neutral axis and y-axis
     # NOTE na_y Should be infinite if alpha is 90 or 270
 
-    P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, FCD, FYD, ES, EPS_CU, AS, lambda_=LAMBDA)
+    # P, Mx, My, na_y_computed, alpha_computed = compute_capacity_surface(x, y, xr, yr, FCD, FYD, ES, EPS_CU, AS, lambda_=LAMBDA)
 
     # Plot capacity surface
-    section_plot_uls.plot_capacity_surface(Mx, My, P, plot_type='scatter')
+    plot_capacity_surface = 'No'
+    if plot_capacity_surface == 'Yes':
+        section_plot_uls.plot_capacity_surface(Mx, My, P, plot_type='scatter')
 
-    df = pd.DataFrame({'Mx': Mx, 'My': My, 'P': P, 'na_y': na_y_computed, 'alpha': alpha_computed})
-    df.to_csv('df_results.csv', sep='\t')
+        df = pd.DataFrame({'Mx': Mx, 'My': My, 'P': P, 'na_y': na_y_computed, 'alpha': alpha_computed})
+        df.to_csv('df_results.csv', sep='\t')
 
     # Compute force for neutral axis location
     Fc, Fr, Asb, sb_cog, x_sb, y_sb = sc.perform_section_analysis(x, y, xr, yr, FCD, FYD, ES, EPS_CU, AS, alpha_deg, na_y, lambda_=LAMBDA)
 
     # Compute individual moments generated in the section
     Mcx, Mcy, Mrx, Mry = sc.compute_moment_contributions(xr, yr, Asb, sb_cog, Fc, Fr)
-
-    # Compute capacities 
-    P, Mx, My = compute_capacities(Fc, Fr, Mcx, Mcy, Mrx, Mry)
+    print('Mcx = ', Mcx/10**6)
+    print('Mcy = ', Mcy/10**6)
+    print('Mrx = ', sum(Mrx)/10**6)
+    print('Mry = ', sum(Mry)/10**6)
+    # Compute capacities
+    P_float, Mx_float, My_float = compute_capacities(
+        Fc, Fr, Mcx, Mcy, Mrx, Mry)
+    print(P_float)
+    print(Mx_float)
+    print(My_float)
 
     # Plot section for specific location of neutral axis
-    section_plot_uls.plot_ULS_section(x, y, xr, yr, x_sb, y_sb, Asb, sb_cog, Fc, Fr, Mcx, Mcy, Mrx, Mry, Mx, My, alpha_deg, na_y)
+    plot_uls_section = 'Yes'
+    if plot_uls_section == 'Yes':
+        section_plot_uls.plot_ULS_section(
+            x, y, xr, yr, x_sb, y_sb, Asb, sb_cog, Fc, Fr, Mcx, Mcy, Mrx, Mry, Mx_float, My_float, alpha_deg, na_y)
+
+    Mx = [i/10**6 for i in Mx]
+    My = [i/10**6 for i in My]
+    P = [i/10**3 for i in P]
+
+    #
+    Ped = [1195]
+    Mxed = [150]
+    Myed = [200]
+
+    point_cloud = np.transpose(np.array([P, Mx, My]))  # Assemble points to numpy array
+    c_hull = ConvexHull(point_cloud)
+    U = np.array([Ped[0], Mxed[0], Myed[0]])
+    intersection = line_hull_intersection(U, c_hull)
+
+    load_comb = np.array([Ped, Mxed, Myed])
+
+    load_comb_dist = point_to_point_dist_3d([0, 0, 0], load_comb)
+    capacity_dist = point_to_point_dist_3d([0, 0, 0], intersection)
+
+    # print('load_comb_dist_single_test = ', load_comb_dist)
+    # print('UR_single_test = ', load_comb_dist / capacity_dist)
+    # print('cap_intersection_single_test = ', intersection)
+
+    # Compute utilizations ratios
+    ur = utilization_ratio(Ped, Mxed, Myed, P, Mx, My)
+    # print('UR_test2_function =', ur)
+
+    # print(in_point_cloud(point_cloud, load_comb))
+    fig_surface = plt.figure()
+    ax = Axes3D(fig_surface)
+    scat = ax.scatter(Mx, My, P, linewidth=0.2, antialiased=True)
+    ax.scatter(Mxed, Myed, Ped, color='green', s=35)
+    ax.plot([0, intersection[1]], [0, intersection[2]], [0, intersection[0]], '-', color='purple')
+    plt.show()
+
+
 
 
 ####################################################

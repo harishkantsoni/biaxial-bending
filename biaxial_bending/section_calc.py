@@ -10,16 +10,18 @@ import matplotlib.path as mpltPath
 import geometry
 
 
+'''
+This module contain various functions for section analysis of reinforced concrete cross 
+sections in both ULS and SLS. 
+'''
+
+
 # Create log file and set default logging statement
 FORMAT = '%(name)-15s %(message)s'
 filename = 'test.log'
 logging.basicConfig(filename=filename, level=logging.INFO, filemode='w', format=FORMAT)
 
-'''
-This module contains functions that can be used for reinforced concrete section analysis 
-in both SLS and ULS.
 
-'''
 # NOTE Rebars located between neutral axis and stress block, i.e. in the gap with neither
 #      compression nor tension are not accounted for in the various functions. In reality,
 #      the bars will be in compression, but should maybe not be in the calculation model. 
@@ -236,7 +238,7 @@ def transformed_axial_stiffness(x, y, xr, yr, dia, P, Ec=EC, Es=ES):
         return E * As
 
 
-def strain_field_eval(x, y, P, Mx, My, EA, Itx, Ity):
+def strain_field_eval(x, y, P, Mx, My, E, EA, Itx, Ity):
     '''
     Return the evaluation of the strain field equation given for external loads 
     P, Mx and My in point (x, y).
@@ -252,7 +254,9 @@ def strain_field_eval(x, y, P, Mx, My, EA, Itx, Ity):
     kappa_x = Mx/(E*Itx)
     kappa_y = My/(E*Ity)
 
-    return eps_P + x * kappa_x + y * kappa_y
+    # NOTE There could be a check to se if strains are larger than allowed, e.g. eps_cu
+
+    return eps_P + y * kappa_x + x * kappa_y
 
 
 def compute_plastic_centroid(x, y, xr, yr, As, fck, fyk):
@@ -331,6 +335,11 @@ def compute_dist_to_na(x, y, xr, yr, alpha_deg, na_y):
     return dv, dr
 
 
+# def stress_block_SLS(x, y, alpha_deg, na_y):
+
+#     # return
+
+
 def stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
     '''
     Returns stress block geometry.
@@ -374,7 +383,7 @@ def stress_block_geometry(x, y, dv, dr, alpha_deg, na_y, lambda_=0.8):
         cross_section_state = 'PURE COMPRESSION'
 
         # Distance from neutral axis to extreme compression fiber (all distances will be negative)
-        c = min(dv)
+        c = min(dv)     
 
         # Set vertices of stress block (entire section)
         x_sb = x
@@ -438,17 +447,19 @@ def compute_rebar_strain(dist_to_na, c, eps_cu):
 
 def compute_rebar_stress(eps_r, Es, fyd):
     ''' Return stress in each rebar as a list '''
-    # NOTE Could be expanded to handle both 'ULS' and 'SLS'
-    # NOTE! CAN NOT HANDLE SLS AT THE MOMENT!
+    
     sigma_r = []
     for i in range(len(eps_r)):
         # Linear elastic stress in i'th bar
         si = eps_r[i] * Es
+
+        # NOTE Below could maybe be min(si, fyd), but remember sign! 
+        # Check if rebar yields
         if abs(si) <= fyd:
-            # Use computed stress if it does not exceed yielding stress
+            # Computed stress does not exceed yield stress
             sigma_r.append(si)
         else:
-            # If computed stress exceeds yield, use yielding stress instead
+            # Computed stress exceeds yield, use yield stress instead
             sigma_r.append(np.sign(si)*fyd)
 
     return sigma_r
@@ -490,7 +501,7 @@ def compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=0.80):
                               or outside stress block, respectively
 
     Returns:
-      Fr (list)     : List of rebar forces
+      Fr (list)             : List of rebar forces
     '''
     Fr = []    # Forces in each rebar
 
@@ -551,6 +562,7 @@ def compute_moment_contributions(xr, yr, Asb, sb_cog, Fc, Fr):
 
     # Moment contribution from rebars about x- and y-axis (according to moment sign convention)
     # FIXME Lever arms should be taken wrt. the centroid of the transformed section, i.e. including reinforcement
+    # NOTE Why not also plastic centroid?
     Mrx = [-Fr[i] * yr[i] for i in range(len(yr))]
     Mry = [-Fr[i] * xr[i] for i in range(len(xr))]
 
@@ -627,6 +639,13 @@ def perform_section_analysis(x, y, xr, yr, fcd, fyd, Es, eps_cu, As, alpha_deg, 
     Fr = compute_rebar_forces(xr, yr, As, sigma_r, rebars_inside, fcd, lambda_=lambda_)
     Fc = compute_concrete_force(fcd, Asb)
 
+    logging.info('dv =' + str(np.round(dv, decimals=2)))
+    logging.info('dr =' + str(np.round(dr, decimals=2)))
+    logging.info('Asb =' + str(np.round(Asb, decimals=2)))
+    logging.info('Fc =' + str(np.round(Fc, decimals=2)))
+    logging.info('eps_r =' + str(eps_r))
+    logging.info('sigma_r =' + str(np.round(sigma_r, decimals=2)))
+    logging.info('Fr =' + str(np.round(Fr, decimals=2)))
     logging.info('Finished logging of section analysis')
 
     return Fc, Fr, Asb, sb_cog, x_sb, y_sb

@@ -102,7 +102,7 @@ def plot_ULS_section(x, y, xr, yr, x_sb, y_sb, Asb, sb_cog, Fc, Fr, Mcx, Mcy, Mr
     # TODO Radius of rebars on the plot should match the actual radius of the bars
     # Plot rebars
     for i in range(len(xr)):
-        ax.add_patch(patches.Circle((xr[i], yr[i]), radius=0.4, hatch='/////', facecolor='silver', edgecolor='k', linewidth=1))
+        ax.add_patch(patches.Circle((xr[i], yr[i]), radius=8, hatch='/////', facecolor='silver', edgecolor='k', linewidth=1))
 
     # margin = b/4
     # plt.axis((-(b/2+margin), b/2+margin, -(h/2+margin), h/2+margin))    # Set axis limits

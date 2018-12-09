@@ -1,8 +1,14 @@
 from math import sqrt, pi, cos, sin, tan, atan, atan2
 import numpy as np
 
-# Compute radius from 3 point on a circle
 
+# ------------------------------------------
+# 2D GEOMETRY
+# ------------------------------------------
+
+# Compute radius from 3 point on a circle
+def radius_from_3_points():
+    pass
 
 # Compute intersection between line and polygon
 def line_polygon_collisions(angle_deg, y_intersect, x_vertex, y_vertex):
@@ -111,7 +117,7 @@ def polygon_area(x, y, signed=False):
 # Distance from point to line (optionally signed)
 def point_to_line_dist(x, y, x0, y0, x1, y1, signed=True):
     '''
-    Compute the distance from a point (x, y) to a line passing through points (x0, y0) and (x1, y2).
+    Return the distance from a point (x, y) to a line passing through points (x0, y0) and (x1, y2).
     By default, the distance is 'signed', i.e. can be both positive and negative depending on point location compared
     to the line.
     The sign convention is chosen so a line placed on the x-axis, i.e. 0° with horizontal, has positive and negative
@@ -161,6 +167,20 @@ def order_polygon_vertices(x_vertices, y_vertices, x_section_vertices, y_section
                            counterclockwise=True):
     '''
     Sort polygon vertices in consecutive circular order (clockwise or counterclockwise) measured from positive x-axis.
+    
+    Args:
+    # TODO THIS SETUP IS NOT GOOD STYLE! THE PARAMS CALLED x_vertices AND y_vertices should default 
+    #      to None and there should be a check to see if they were inputted.
+
+        x_vertices         (list) : x-coordinate of vertices of polygon that needs to ber ordered
+        y_vertices         (list) : y-coordinate of vertices of polygon that needs to ber ordered
+        x_section_vertices (list) : x-coordinate of vertices of polygon whos centre of gravity 
+                                    provides basis for ordering
+        y_section_vertices (list) : x-coordinate of vertices of polygon whos centre of gravity 
+                                    provides basis for ordering
+
+    Returns:
+        Lists of ordered coordinates
     '''
     x_t = x_vertices
     y_t = y_vertices
@@ -223,6 +243,28 @@ def get_section_compression_vertices(x, y, na_y, alpha_deg, delta_v):
 
     return x_compr_vertices, y_compr_vertices
 
+
+# ------------------------------------------
+# 3D GEOMETRY
+# ------------------------------------------
+
+def point_to_point_dist_3d(P1, P2):
+    return sqrt((P2[0]-P1[0])**2 + (P2[1]-P1[1])**2 + (P2[2]-P1[2])**2)
+
+
+def line_hull_intersection(U, c_hull):
+    ''' 
+    Return intersection between the line defined by vector U with convex hull
+
+    Args:
+        - U (numpy array)   : Vector defining line, format 'U=np.array([X, Y, Z])' 
+        - c_hull (object)   : Scipy object returned from a convex hull analysis 
+    '''
+    eq = c_hull.equations.T
+    V, b = eq[:-1], eq[-1]
+    V = np.transpose(V)
+    alpha = -b / np.dot(V, U)
+    return np.min(alpha[alpha > 0]) * U
 
 
 if __name__ == '__main__':
